@@ -1,0 +1,519 @@
+@page "/"
+@rendermode InteractiveServer
+@inject IptvLibraryService Library
+@inject IJSRuntime JS
+
+<PageTitle>TV Local — C# Blazor IPTV</PageTitle>
+
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-badge">C#</div>
+            <div>
+                <h1>TV Local</h1>
+                <span>ASP.NET Core Blazor</span>
+            </div>
+        </div>
+
+        <button class="btn" @onclick='() => OpenModal("m3u_url")'>+ Adicionar Lista / EPG</button>
+
+        <div>
+            <div class="section-label">Navegação</div>
+            @foreach (var (id, label) in NavItems)
+            {
+                <button class="nav-btn @(_section == id ? "active" : "")"
+                        @onclick="() => SelectSection(id)">
+                    <span>@label</span>
+                </button>
+            }
+        </div>
+
+        <div>
+            <div class="section-label">Categorias</div>
+            @foreach (var cat in Categories)
+            {
+                <button class="cat-btn @(_selectedCategory == cat.Name ? "active" : "")"
+                        @onclick="() => _selectedCategory = cat.Name">
+                    <span class="truncate">@cat.Name</span>
+                    <span>@cat.Count</span>
+                </button>
+            }
+        </div>
+
+        @if (Library.Sources.Count > 0)
+        {
+            <div>
+                <div class="section-label">Listas Conectadas</div>
+                @foreach (var src in Library.Sources)
+                {
+                    <div class="source-item">
+                        <div style="min-width:0">
+                            <div class="truncate"><strong>@src.Name</strong></div>
+                            <div class="muted">@src.ChannelCount itens</div>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" @onclick="() => RemoveSourceAsync(src.Id)">✕</button>
+                    </div>
+                }
+            </div>
+        }
+    </aside>
+
+    <main class="main-content">
+        @if (!string.IsNullOrEmpty(_statusMessage))
+        {
+            <div class="source-item" style="border: 1px solid rgba(59,130,246,0.4);">
+                <span>@_statusMessage</span>
+                <button class="btn btn-secondary btn-sm" @onclick="() => _statusMessage = null">Fechar</button>
+            </div>
+        }
+
+        @if (Library.Channels.Count == 0)
+        {
+            <div class="welcome-hero">
+                <h2>Bem-vindo ao TV Local (C# Blazor)</h2>
+                <p class="muted" style="line-height: 1.5; margin-bottom: 18px;">
+                    Importe uma playlist M3U/M3U8, conecte um servidor Xtream Codes ou carregue os streams públicos
+                    de demonstração para testar agora mesmo.
+                </p>
+                <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                    <button class="btn" @onclick="LoadDemoAsync">Testar com Lista Demo</button>
+                    <button class="btn btn-secondary" @onclick='() => OpenModal("m3u_url")'>Adicionar M3U / Xtream</button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="stage-grid">
+                <div id="blazor-player-box" class="player-shell">
+                    <video id="tvlocal-video" class="player-video" controls playsinline></video>
+                    <div class="player-bar">
+                        <div style="min-width:0; flex:1;">
+                            <div style="font-weight:700;">@(_activeChannel?.Name ?? "Selecione um canal abaixo")</div>
+                            <div class="muted">
+                                @if (_activeChannel is not null)
+                                {
+                                    var guide = Library.GetGuide(_activeChannel);
+                                    @(guide.Current is not null
+                                        ? $"Agora: {guide.Current.Title}"
+                                        : _activeChannel.Group)
+                                }
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-secondary btn-sm" @onclick="ToggleProxyAsync">
+                                @(_useProxy ? "Proxy: ON" : "Proxy: OFF")
+                            </button>
+                            @if (_activeChannel is not null)
+                            {
+                                <button class="btn btn-secondary btn-sm" @onclick="() => Library.ToggleFavoriteAsync(_activeChannel.Id)">
+                                    @(Library.IsFavorite(_activeChannel.Id) ? "★ Favorito" : "☆ Favoritar")
+                                </button>
+                            }
+                            <button class="btn btn-secondary btn-sm" @onclick="ToggleFullscreenAsync">Tela Cheia</button>
+                        </div>
+                    </div>
+                </div>
+
+                <aside class="epg-panel">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong>Guia de Programação (EPG)</strong>
+                        <button class="btn btn-secondary btn-sm" @onclick='() => OpenModal("epg")'>Importar XMLTV</button>
+                    </div>
+                    @if (_activeChannel is null)
+                    {
+                        <p class="muted">Selecione um canal para visualizar a programação.</p>
+                    }
+                    else
+                    {
+                        var upcoming = Library.GetGuide(_activeChannel).Upcoming;
+                        @if (upcoming.Count == 0)
+                        {
+                            <p class="muted">Sem guia EPG para @_activeChannel.Name.</p>
+                        }
+                        else
+                        {
+                            @foreach (var prog in upcoming)
+                            {
+                                <div class="epg-item">
+                                    <div class="epg-time">@prog.Start.ToLocalTime().ToString("HH:mm") – @prog.Stop.ToLocalTime().ToString("HH:mm")</div>
+                                    <div class="epg-title">@prog.Title</div>
+                                    @if (!string.IsNullOrEmpty(prog.Description))
+                                    {
+                                        <p class="epg-desc">@prog.Description</p>
+                                    }
+                                </div>
+                            }
+                        }
+                    }
+                </aside>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                <input class="search-input" placeholder="Buscar canal, filme, série ou categoria..."
+                       @bind="_searchQuery" @bind:event="oninput" />
+                <span class="muted" style="white-space:nowrap;">@FilteredChannels.Count itens</span>
+            </div>
+
+            <div class="channel-grid">
+                @foreach (var ch in FilteredChannels.Take(300))
+                {
+                    var isActive = _activeChannel?.Id == ch.Id;
+                    var isFav = Library.IsFavorite(ch.Id);
+                    var guide = Library.GetGuide(ch);
+                    <div class="channel-card @(isActive ? "active" : "")" @onclick="() => PlayChannelAsync(ch)">
+                        <div class="channel-thumb">
+                            @if (!string.IsNullOrEmpty(ch.Logo))
+                            {
+                                <img src="@ch.Logo" alt="@ch.Name" loading="lazy" />
+                            }
+                            else
+                            {
+                                <span>@ch.Name[..Math.Min(2, ch.Name.Length)].ToUpperInvariant()</span>
+                            }
+                        </div>
+                        <div style="min-width:0; flex:1;">
+                            <div style="display:flex; justify-content:space-between; gap:6px;">
+                                <strong class="truncate" style="font-size:13.5px;">@ch.Name</strong>
+                                <button class="btn btn-secondary btn-sm" style="padding:2px 6px;"
+                                        @onclick:stopPropagation="true"
+                                        @onclick="() => Library.ToggleFavoriteAsync(ch.Id)">
+                                    @(isFav ? "★" : "☆")
+                                </button>
+                            </div>
+                            <div class="muted truncate">
+                                @(guide.Current is not null ? $"{guide.Current.Start.ToLocalTime():HH:mm} • {guide.Current.Title}" : ch.Group)
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </main>
+</div>
+
+@if (_modalOpen)
+{
+    <div class="modal-backdrop" @onclick="() => _modalOpen = false">
+        <div class="modal-card" @onclick:stopPropagation="true">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0;">Adicionar Lista / Fonte IPTV</h3>
+                <button class="btn btn-secondary btn-sm" @onclick="() => _modalOpen = false">Fechar</button>
+            </div>
+
+            <div class="tabs-row">
+                <button class="tab-pill @(_modalTab == "m3u_url" ? "active" : "")" @onclick='() => _modalTab = "m3u_url"'>URL M3U</button>
+                <button class="tab-pill @(_modalTab == "m3u_file" ? "active" : "")" @onclick='() => _modalTab = "m3u_file"'>Arquivo .M3U</button>
+                <button class="tab-pill @(_modalTab == "xtream" ? "active" : "")" @onclick='() => _modalTab = "xtream"'>Xtream Codes</button>
+                <button class="tab-pill @(_modalTab == "epg" ? "active" : "")" @onclick='() => _modalTab = "epg"'>EPG (XMLTV)</button>
+                <button class="tab-pill @(_modalTab == "demo" ? "active" : "")" @onclick='() => _modalTab = "demo"'>Demo</button>
+            </div>
+
+            @if (!string.IsNullOrEmpty(_modalError))
+            {
+                <div class="error-box">@_modalError</div>
+            }
+
+            @if (_modalTab == "m3u_url")
+            {
+                <input class="input" placeholder="Nome da lista" @bind="_m3uName" />
+                <input class="input" placeholder="https://exemplo.com/lista.m3u" @bind="_m3uUrl" />
+                <button class="btn" disabled="@_isBusy" @onclick="ImportM3uUrlAsync">
+                    @(_isBusy ? "Carregando..." : "Importar Lista M3U")
+                </button>
+            }
+            else if (_modalTab == "m3u_file")
+            {
+                <p class="muted">Escolha um arquivo .m3u, .m3u8 ou .txt:</p>
+                <InputFile OnChange="OnM3uFileSelectedAsync" accept=".m3u,.m3u8,.txt" />
+            }
+            else if (_modalTab == "xtream")
+            {
+                <input class="input" placeholder="Nome do perfil" @bind="_xtName" />
+                <input class="input" placeholder="http://servidor.exemplo.com:8080" @bind="_xtServer" />
+                <input class="input" placeholder="Usuário" @bind="_xtUser" />
+                <input class="input" type="password" placeholder="Senha" @bind="_xtPass" />
+                <button class="btn" disabled="@_isBusy" @onclick="ConnectXtreamAsync">
+                    @(_isBusy ? "Conectando..." : "Conectar Xtream Codes")
+                </button>
+            }
+            else if (_modalTab == "epg")
+            {
+                <input class="input" placeholder="https://exemplo.com/epg.xml" @bind="_epgUrl" />
+                <button class="btn" disabled="@_isBusy" @onclick="ImportEpgUrlAsync">Carregar EPG por URL</button>
+                <div class="muted" style="text-align:center;">ou selecione um arquivo XML local</div>
+                <InputFile OnChange="OnEpgFileSelectedAsync" accept=".xml,.xmltv" />
+            }
+            else if (_modalTab == "demo")
+            {
+                <p class="muted">Carrega streams públicos e legais de demonstração para testar o player Blazor.</p>
+                <button class="btn" @onclick="LoadDemoFromModalAsync">Carregar Lista Demo Agora</button>
+            }
+        </div>
+    </div>
+}
+
+@if (_activeSeries is not null)
+{
+    <div class="modal-backdrop" @onclick="() => _activeSeries = null">
+        <div class="modal-card" @onclick:stopPropagation="true">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0;">@_activeSeries.Name</h3>
+                <button class="btn btn-secondary btn-sm" @onclick="() => _activeSeries = null">Fechar</button>
+            </div>
+            @if (_seriesDetails is null)
+            {
+                <p class="muted">Carregando temporadas e episódios...</p>
+            }
+            else
+            {
+                <div class="tabs-row">
+                    @foreach (var s in _seriesDetails.Seasons.Keys.OrderBy(x => x))
+                    {
+                        <button class="tab-pill @(_selectedSeason == s ? "active" : "")" @onclick="() => _selectedSeason = s">
+                            Temporada @s
+                        </button>
+                    }
+                </div>
+                @if (_seriesDetails.Seasons.TryGetValue(_selectedSeason, out var episodes))
+                {
+                    @foreach (var ep in episodes)
+                    {
+                        <button class="btn btn-secondary" style="text-align:left;" @onclick="() => PlayEpisodeAsync(ep)">
+                            Episódio @ep.EpisodeNumber: @ep.Title
+                        </button>
+                    }
+                }
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private static readonly (string Id, string Label)[] NavItems =
+    [
+        ("Live", "TV ao Vivo"),
+        ("Vod", "Filmes (VOD)"),
+        ("Series", "Séries"),
+        ("Favorites", "Favoritos"),
+        ("Recents", "Recentes"),
+    ];
+
+    private string _section = "Live";
+    private string _selectedCategory = "Todas";
+    private string _searchQuery = string.Empty;
+    private Channel? _activeChannel;
+    private bool _useProxy;
+    private string? _statusMessage;
+
+    private bool _modalOpen;
+    private string _modalTab = "m3u_url";
+    private string? _modalError;
+    private bool _isBusy;
+
+    private string _m3uName = "Minha Lista IPTV";
+    private string _m3uUrl = string.Empty;
+    private string _xtName = "Servidor Xtream";
+    private string _xtServer = string.Empty;
+    private string _xtUser = string.Empty;
+    private string _xtPass = string.Empty;
+    private string _epgUrl = string.Empty;
+
+    private Channel? _activeSeries;
+    private SeriesDetails? _seriesDetails;
+    private int _selectedSeason = 1;
+
+    private List<Channel> SectionChannels => _section switch
+    {
+        "Vod" => Library.Channels.Where(c => c.Kind == StreamKind.Vod).ToList(),
+        "Series" => Library.Channels.Where(c => c.Kind == StreamKind.Series).ToList(),
+        "Favorites" => Library.Channels.Where(c => Library.IsFavorite(c.Id)).ToList(),
+        "Recents" => Library.Recents
+            .Select(id => Library.Channels.FirstOrDefault(c => c.Id == id))
+            .Where(c => c is not null)
+            .Cast<Channel>()
+            .ToList(),
+        _ => Library.Channels.Where(c => c.Kind == StreamKind.Live).ToList(),
+    };
+
+    private List<(string Name, int Count)> Categories
+    {
+        get
+        {
+            var items = SectionChannels;
+            var list = new List<(string, int)> { ("Todas", items.Count) };
+            list.AddRange(items.GroupBy(c => c.Group)
+                .OrderBy(g => g.Key)
+                .Select(g => (g.Key, g.Count())));
+            return list;
+        }
+    }
+
+    private List<Channel> FilteredChannels
+    {
+        get
+        {
+            var q = _searchQuery.Trim();
+            return SectionChannels.Where(c =>
+            {
+                if (_selectedCategory != "Todas" && c.Group != _selectedCategory) return false;
+                if (string.IsNullOrEmpty(q)) return true;
+                return c.Name.Contains(q, StringComparison.OrdinalIgnoreCase)
+                    || c.Group.Contains(q, StringComparison.OrdinalIgnoreCase);
+            }).ToList();
+        }
+    }
+
+    private void SelectSection(string id)
+    {
+        _section = id;
+        _selectedCategory = "Todas";
+    }
+
+    private void OpenModal(string tab)
+    {
+        _modalTab = tab;
+        _modalError = null;
+        _modalOpen = true;
+    }
+
+    private async Task LoadDemoAsync()
+    {
+        await Library.LoadDemoAsync();
+        _section = "Live";
+        _selectedCategory = "Todas";
+        _statusMessage = "Lista demo carregada com sucesso!";
+        if (FilteredChannels.Count > 0)
+        {
+            await PlayChannelAsync(FilteredChannels[0]);
+        }
+    }
+
+    private async Task LoadDemoFromModalAsync()
+    {
+        _modalOpen = false;
+        await LoadDemoAsync();
+    }
+
+    private async Task PlayChannelAsync(Channel channel)
+    {
+        if (channel.Kind == StreamKind.Series && string.IsNullOrEmpty(channel.Url))
+        {
+            _activeSeries = channel;
+            _seriesDetails = null;
+            _seriesDetails = await Library.GetSeriesInfoAsync(channel);
+            _selectedSeason = _seriesDetails.Seasons.Keys.OrderBy(x => x).FirstOrDefault(1);
+            return;
+        }
+
+        _activeChannel = channel;
+        await Library.RecordRecentAsync(channel.Id);
+        await JS.InvokeVoidAsync("tvLocalBlazorPlayer.play", "tvlocal-video", channel.Url, _useProxy);
+    }
+
+    private async Task PlayEpisodeAsync(SeriesEpisode ep)
+    {
+        if (_activeSeries is null) return;
+        var epChannel = new Channel(
+            Id: $"{_activeSeries.Id}_ep_{ep.Id}",
+            Name: $"{_activeSeries.Name} • T{ep.SeasonNumber}E{ep.EpisodeNumber} — {ep.Title}",
+            Url: ep.Url,
+            Group: _activeSeries.Group,
+            Kind: StreamKind.Series,
+            SourceId: _activeSeries.SourceId,
+            Logo: ep.Cover ?? _activeSeries.Logo);
+        _activeSeries = null;
+        await PlayChannelAsync(epChannel);
+    }
+
+    private async Task ToggleProxyAsync()
+    {
+        _useProxy = !_useProxy;
+        if (_activeChannel is not null && !string.IsNullOrEmpty(_activeChannel.Url))
+        {
+            await JS.InvokeVoidAsync("tvLocalBlazorPlayer.play", "tvlocal-video", _activeChannel.Url, _useProxy);
+        }
+    }
+
+    private Task ToggleFullscreenAsync() =>
+        JS.InvokeVoidAsync("tvLocalBlazorPlayer.toggleFullscreen", "blazor-player-box").AsTask();
+
+    private async Task ImportM3uUrlAsync()
+    {
+        _isBusy = true;
+        _modalError = null;
+        try
+        {
+            var src = await Library.AddM3uFromUrlAsync(_m3uName, _m3uUrl);
+            _statusMessage = $"{src.ChannelCount} itens importados de \"{src.Name}\".";
+            _modalOpen = false;
+        }
+        catch (Exception ex) { _modalError = ex.Message; }
+        finally { _isBusy = false; }
+    }
+
+    private async Task OnM3uFileSelectedAsync(InputFileChangeEventArgs e)
+    {
+        _isBusy = true;
+        _modalError = null;
+        try
+        {
+            using var reader = new StreamReader(e.File.OpenReadStream(maxAllowedSize: 30 * 1024 * 1024));
+            var content = await reader.ReadToEndAsync();
+            var src = await Library.AddM3uFromContentAsync(Path.GetFileNameWithoutExtension(e.File.Name), content);
+            _statusMessage = $"{src.ChannelCount} itens importados de \"{src.Name}\".";
+            _modalOpen = false;
+        }
+        catch (Exception ex) { _modalError = ex.Message; }
+        finally { _isBusy = false; }
+    }
+
+    private async Task ConnectXtreamAsync()
+    {
+        _isBusy = true;
+        _modalError = null;
+        try
+        {
+            var src = await Library.AddXtreamSourceAsync(_xtName, new XtreamCredentials(_xtServer, _xtUser, _xtPass));
+            _statusMessage = $"Xtream \"{src.Name}\" conectado ({src.ChannelCount} itens).";
+            _modalOpen = false;
+        }
+        catch (Exception ex) { _modalError = ex.Message; }
+        finally { _isBusy = false; }
+    }
+
+    private async Task ImportEpgUrlAsync()
+    {
+        _isBusy = true;
+        _modalError = null;
+        try
+        {
+            var count = await Library.ImportEpgFromUrlAsync(_epgUrl);
+            _statusMessage = $"EPG importado ({count} canais).";
+            _modalOpen = false;
+        }
+        catch (Exception ex) { _modalError = ex.Message; }
+        finally { _isBusy = false; }
+    }
+
+    private async Task OnEpgFileSelectedAsync(InputFileChangeEventArgs e)
+    {
+        _isBusy = true;
+        _modalError = null;
+        try
+        {
+            using var reader = new StreamReader(e.File.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024));
+            var xml = await reader.ReadToEndAsync();
+            var count = await Library.ImportEpgFromXmlAsync(xml);
+            _statusMessage = $"EPG importado ({count} canais).";
+            _modalOpen = false;
+        }
+        catch (Exception ex) { _modalError = ex.Message; }
+        finally { _isBusy = false; }
+    }
+
+    private async Task RemoveSourceAsync(string sourceId)
+    {
+        await Library.RemoveSourceAsync(sourceId);
+        if (_activeChannel?.SourceId == sourceId) _activeChannel = null;
+    }
+}

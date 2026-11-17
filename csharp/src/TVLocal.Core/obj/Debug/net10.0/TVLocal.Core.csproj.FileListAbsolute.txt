@@ -1,0 +1,14 @@
+C:\Meus Projetos\TV Local\csharp\src\TVLocal.Core\bin\Debug\net10.0\TVLocal.Core.deps.json
+C:\Meus Projetos\TV Local\csharp\src\TVLocal.Core\bin\Debug\net10.0\TVLocal.Core.dll
+C:\Meus Projetos\TV Local\csharp\src\TVLocal.Core\bin\Debug\net10.0\TVLocal.Core.pdb
+C:\Meus Projetos\TV Local\csharp\src\TVLocal.Core\obj\Debug\net10.0\TVLocal.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\Meus Projetos\TV Local\csharp\src\TVLocal.Core\obj\Debug\net10.0\TVLocal.Core.AssemblyInfoInputs.cache
+C:\Meus Projetos\TV Local\csharp\src\TVLocal.Core\obj\Debug\net10.0\TVLocal.Core.AssemblyInfo.cs
+C:\Meus Projetos\TV Local\csharp\src\TVLocal.Core\obj\Debug\net10.0\TVLocal.Core.csproj.CoreCompileInputs.cache
+C:\Meus Projetos\TV Local\csharp\src\TVLocal.Core\obj\Debug\net10.0\TVLocal.Core.dll
+C:\Meus Projetos\TV Local\csharp\src\TVLocal.Core\obj\Debug\net10.0\refint\TVLocal.Core.dll
+C:\Meus Projetos\TV Local\csharp\src\TVLocal.Core\obj\Debug\net10.0\TVLocal.Core.pdb
+C:\Meus Projetos\TV Local\csharp\src\TVLocal.Core\obj\Debug\net10.0\ref\TVLocal.Core.dll
+C:\Meus Projetos\TV Local\csharp\obj\VerifyBuild\TVLocal.Core.deps.json
+C:\Meus Projetos\TV Local\csharp\obj\VerifyBuild\TVLocal.Core.dll
+C:\Meus Projetos\TV Local\csharp\obj\VerifyBuild\TVLocal.Core.pdb

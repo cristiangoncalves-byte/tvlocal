@@ -1,0 +1,36 @@
+{
+  "name": "@tv-local/desktop",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "npm --workspace=@tv-local/web run build && tsc",
+    "start": "npm run build && electron .",
+    "package:win": "npm run build && electron-builder --win",
+    "typecheck": "tsc --noEmit"
+  },
+  "build": {
+    "appId": "com.tvlocal.iptv",
+    "productName": "TV Local",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist-electron/**/*",
+      {
+        "from": "../web/dist",
+        "to": "web-dist"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "electron": "^45.3.3",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.8.2"
+  }
+}

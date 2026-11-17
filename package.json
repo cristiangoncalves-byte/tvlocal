@@ -1,0 +1,18 @@
+{
+  "name": "tv-local",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace=@tv-local/web run dev",
+    "dev:desktop": "npm --workspace=@tv-local/desktop run dev",
+    "dev:mobile": "npm --workspace=@tv-local/mobile run start",
+    "build:web": "npm --workspace=@tv-local/web run build",
+    "build:desktop": "npm --workspace=@tv-local/desktop run build",
+    "typecheck": "npm --workspace=@tv-local/core run typecheck && npm --workspace=@tv-local/web run typecheck && npm --workspace=@tv-local/desktop run typecheck && npm --workspace=@tv-local/mobile run typecheck",
+    "test": "npm --workspace=@tv-local/core run test"
+  }
+}

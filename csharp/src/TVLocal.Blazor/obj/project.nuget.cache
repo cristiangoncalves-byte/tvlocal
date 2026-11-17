@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "82xI4m2hr1U=",
+  "success": true,
+  "projectFilePath": "C:\\Meus Projetos\\TV Local\\csharp\\src\\TVLocal.Blazor\\TVLocal.Blazor.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\tecno\\.nuget\\packages\\microsoft.aspnetcore.app.internal.assets\\10.0.13\\microsoft.aspnetcore.app.internal.assets.10.0.13.nupkg.sha512"
+  ],
+  "logs": []
+}

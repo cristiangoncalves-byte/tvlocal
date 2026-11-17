@@ -1,0 +1,69 @@
+<UserControl x:Class="TVLocal.Wpf.MultiStreamTile"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF">
+    <Border x:Name="TileBorder" Background="#0F1624" BorderBrush="#1E293B" BorderThickness="1.5"
+            CornerRadius="10" Margin="4" MouseLeftButtonDown="OnTileClicked">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Barra Superior do Slot -->
+            <Border Grid.Row="0" Background="#0F1624" BorderBrush="#1E293B" BorderThickness="0,0,0,1" Padding="8,5">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button x:Name="PlayPauseBtn" Content="⏸" ToolTip="Play / Pausar este slot"
+                                FontSize="11" Padding="6,3" Margin="0,0,4,0" Click="OnPlayPauseClick"/>
+                        <Button x:Name="ReloadBtn" Content="🔄" ToolTip="Atualizar esta transmissão"
+                                FontSize="11" Padding="6,3" Margin="0,0,4,0" Click="OnReloadClick"/>
+                        <Button x:Name="RecordBtn" Content="⏺" ToolTip="Gravar transmissão deste slot"
+                                FontSize="11" Padding="6,3" Margin="0,0,4,0" Click="OnToggleRecordClick"/>
+                        <Button x:Name="SelectSlotBtn" Content="Escolher" ToolTip="Selecionar canal para este slot"
+                                FontSize="11" Padding="7,3" Margin="0,0,4,0" Click="OnSelectSlotClick"/>
+                        <Button x:Name="StopBtn" Content="⏹" ToolTip="Parar transmissão deste slot"
+                                FontSize="11" Padding="6,3" Click="OnStopClick"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0">
+                        <Border x:Name="SlotBadge" Background="#1E293B" CornerRadius="5" Padding="6,2" Margin="0,0,7,0">
+                            <TextBlock x:Name="SlotIndexText" Text="1" FontSize="11" FontWeight="Bold" Foreground="#93C5FD"/>
+                        </Border>
+                        <TextBlock x:Name="ChannelNameText" Text="Slot vazio" FontWeight="SemiBold" FontSize="12.5"
+                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <!-- Vídeo -->
+            <Grid Grid.Row="1" Background="#05080F">
+                <Border x:Name="EmptyOverlay" Background="#0B101B" Cursor="Hand" MouseLeftButtonDown="OnEmptyOverlayClick">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="14">
+                        <TextBlock x:Name="EmptyTitleText" Text="Slot 1 vazio" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="#CBD5E1" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                        <TextBlock Text="Clique para selecionar este slot e escolher um canal"
+                                   FontSize="11.5" Foreground="#64748B" TextWrapping="Wrap" TextAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <vlc:VideoView x:Name="TileVideoView" Background="Black" Visibility="Collapsed"/>
+            </Grid>
+
+            <!-- Barra de Áudio Individual -->
+            <Border Grid.Row="2" Background="#0F1624" BorderBrush="#1E293B" BorderThickness="0,1,0,0" Padding="8,5">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Slider x:Name="VolumeSlider" Width="64" Minimum="0" Maximum="100" Value="90"
+                                VerticalAlignment="Center" Margin="0,0,6,0" ValueChanged="OnVolumeChanged"/>
+                        <Button x:Name="SoloBtn" Content="🎧 Solo" ToolTip="Ouvir apenas este canal (muta os outros)"
+                                FontSize="11" Padding="7,3" Click="OnSoloClick"/>
+                    </StackPanel>
+
+                    <Button x:Name="MuteBtn" Content="🔊 Som Ativo" ToolTip="Mutar / Desmutar apenas esta transmissão"
+                            FontSize="11" Padding="8,3" HorizontalAlignment="Left" Click="OnMuteClick"/>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>

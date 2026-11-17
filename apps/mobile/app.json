@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "TV Local",
+    "slug": "tv-local",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#080c14",
+    "android": {
+      "package": "com.tvlocal.iptv",
+      "adaptiveIcon": {
+        "backgroundColor": "#080c14"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.tvlocal.iptv",
+      "supportsTablet": true
+    },
+    "plugins": ["expo-video", "expo-document-picker"]
+  }
+}

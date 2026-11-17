@@ -1,0 +1,622 @@
+<Window x:Class="TVLocal.Wpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:TVLocal.Wpf"
+        xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
+        Title="TV Local — IPTV Player (C# WPF + LibVLC)"
+        Width="1380" Height="860"
+        MinWidth="860" MinHeight="560"
+        Background="#080C14"
+        Foreground="#F1F5F9"
+        KeyDown="OnWindowKeyDown">
+    <Window.Resources>
+        <local:PosterImageConverter x:Key="PosterConverter"/>
+
+        <!-- Card estilo Netflix / Prime Video (Poster 2:3) -->
+        <DataTemplate x:Key="VodPosterCardTemplate">
+            <StackPanel Width="168" Margin="0,0,14,18" Cursor="Hand"
+                        Tag="{Binding Channel}"
+                        MouseLeftButtonUp="OnChannelCardClick"
+                        MouseRightButtonUp="OnChannelCardRightClick">
+                <Border x:Name="PosterFrame" Height="244" CornerRadius="10" Background="#111927"
+                        BorderBrush="#1E293B" BorderThickness="1.5" ClipToBounds="True">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="BorderBrush" Value="#3B82F6"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Grid>
+                        <!-- Fallback quando não há capa -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="12">
+                            <TextBlock Text="🎬" FontSize="28" HorizontalAlignment="Center" Margin="0,0,0,6" Opacity="0.65"/>
+                            <TextBlock Text="{Binding Channel.Name}" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#94A3B8" TextWrapping="Wrap" TextAlignment="Center" MaxHeight="56"/>
+                        </StackPanel>
+
+                        <!-- Poster -->
+                        <Image Source="{Binding LogoUrl, Converter={StaticResource PosterConverter}}"
+                               Stretch="UniformToFill" RenderOptions.BitmapScalingMode="LowQuality"/>
+
+                        <!-- Vinheta escura inferior -->
+                        <Border VerticalAlignment="Bottom" Height="90" IsHitTestVisible="False">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#00080C14" Offset="0"/>
+                                    <GradientStop Color="#E6080C14" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+
+                        <!-- Nota / Rating -->
+                        <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8"
+                                Background="#BF080C14" CornerRadius="6" Padding="6,2"
+                                Visibility="{Binding RatingVisibility}">
+                            <TextBlock Text="{Binding RatingBadge}" FontSize="11" FontWeight="Bold" Foreground="#FBBF24"/>
+                        </Border>
+
+                        <!-- Favoritar -->
+                        <Button HorizontalAlignment="Right" VerticalAlignment="Top" Margin="7"
+                                Content="{Binding StarSymbol}" Foreground="{Binding StarBrush}"
+                                Background="#BF080C14" BorderThickness="0" Padding="7,3" FontSize="13"
+                                Tag="{Binding Channel.Id}" Click="OnToggleChannelFavorite"/>
+
+                        <!-- Formato / Tipo -->
+                        <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8"
+                                Background="#CC151E30" BorderBrush="#334155" BorderThickness="1"
+                                CornerRadius="5" Padding="6,2" Visibility="{Binding FormatVisibility}">
+                            <TextBlock Text="{Binding FormatBadge}" FontSize="10" FontWeight="Bold" Foreground="#CBD5E1"/>
+                        </Border>
+
+                        <!-- Play Badge -->
+                        <Border HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8"
+                                Width="30" Height="30" CornerRadius="15" Background="#E63B82F6">
+                            <TextBlock Text="▶" Foreground="White" FontSize="11"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <TextBlock Text="{Binding Channel.Name}" FontWeight="SemiBold" FontSize="13"
+                           Foreground="#F1F5F9" TextWrapping="Wrap" MaxHeight="36"
+                           TextTrimming="CharacterEllipsis" Margin="2,7,2,2"/>
+                <TextBlock Text="{Binding Channel.Group}" FontSize="11.5" Foreground="#94A3B8"
+                           TextTrimming="CharacterEllipsis" Margin="2,0,2,0"/>
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="SidebarCol" Width="270"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar (Completo 270px / Reduzido 68px / Oculto 0px) -->
+        <Border x:Name="SidebarPanel" Grid.Column="0" Background="#0F1624" BorderBrush="#1E293B" BorderThickness="0,0,1,0" Padding="14">
+            <DockPanel>
+                <!-- Brand + CTA -->
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,14">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <Border Width="38" Height="38" CornerRadius="10">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#3B82F6" Offset="0"/>
+                                    <GradientStop Color="#06B6D4" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <TextBlock Text="C#" Foreground="White" FontWeight="ExtraBold" FontSize="15"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel x:Name="BrandTextPanel" VerticalAlignment="Center" Margin="10,0,0,0">
+                            <TextBlock Text="TV Local" FontSize="16" FontWeight="Bold"/>
+                            <TextBlock Text="WPF + LibVLC Nativo" FontSize="11" Foreground="#94A3B8"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Button x:Name="AddSourceBtn" Content="+ Adicionar Lista / EPG" Style="{StaticResource PrimaryButton}" Click="OnOpenAddSource"/>
+                </StackPanel>
+
+                <!-- Navigation -->
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,14">
+                    <TextBlock x:Name="NavHeaderLabel" Text="NAVEGAÇÃO" FontSize="11" Foreground="#64748B" Margin="4,0,0,6"/>
+                    <Button x:Name="NavLiveBtn" Content="📺  TV ao Vivo" Style="{StaticResource NavButton}" Margin="0,0,0,3" Tag="Live" Click="OnNavClick"/>
+                    <Button x:Name="NavVodBtn" Content="🎬  Filmes (VOD)" Style="{StaticResource NavButton}" Margin="0,0,0,3" Tag="Vod" Click="OnNavClick"/>
+                    <Button x:Name="NavSeriesBtn" Content="🎞  Séries" Style="{StaticResource NavButton}" Margin="0,0,0,3" Tag="Series" Click="OnNavClick"/>
+                    <Button x:Name="NavFavBtn" Content="★  Favoritos" Style="{StaticResource NavButton}" Margin="0,0,0,3" Tag="Favorites" Click="OnNavClick"/>
+                    <Button x:Name="NavRecentBtn" Content="⏱  Recentes" Style="{StaticResource NavButton}" Tag="Recents" Click="OnNavClick"/>
+                </StackPanel>
+
+                <!-- Connected Sources -->
+                <StackPanel x:Name="SourcesBlock" DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                    <TextBlock Text="LISTAS CONECTADAS" FontSize="11" Foreground="#64748B" Margin="4,0,0,6"/>
+                    <ItemsControl x:Name="SourcesList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#151E30" CornerRadius="8" Padding="10,8" Margin="0,0,0,6">
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Content="✕" Padding="7,3" FontSize="11"
+                                                Tag="{Binding Id}" Click="OnRemoveSourceClick"/>
+                                        <StackPanel Margin="0,0,8,0">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12.5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding ChannelCount, StringFormat='{}{0} itens'}" FontSize="11" Foreground="#94A3B8"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- Categories -->
+                <DockPanel x:Name="CategoriesBlock">
+                    <TextBlock DockPanel.Dock="Top" Text="CATEGORIAS" FontSize="11" Foreground="#64748B" Margin="4,0,0,6"/>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="CategoriesList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Margin="0,0,0,3" Padding="10,7" Cursor="Hand"
+                                            Background="{Binding BgBrush}" Foreground="{Binding TextBrush}"
+                                            BorderThickness="0" Tag="{Binding Name}" Click="OnCategoryClick">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="CatBd" Background="{TemplateBinding Background}"
+                                                        CornerRadius="8" Padding="{TemplateBinding Padding}">
+                                                    <DockPanel>
+                                                        <Border DockPanel.Dock="Right" Background="#1A253B" CornerRadius="10" Padding="7,1">
+                                                            <TextBlock Text="{Binding Count}" FontSize="11" Foreground="#94A3B8"/>
+                                                        </Border>
+                                                        <TextBlock Text="{Binding Name}" FontSize="13"
+                                                                   TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
+                                                    </DockPanel>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="CatBd" Property="Background" Value="#1D2940"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Main Area -->
+        <Grid x:Name="MainAreaGrid" Grid.Column="1" Margin="18,14">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition x:Name="StageRow" Height="405" MinHeight="140"/>
+                <RowDefinition x:Name="SplitterRow" Height="Auto"/>
+                <RowDefinition x:Name="SearchRow" Height="Auto"/>
+                <RowDefinition x:Name="ChannelsRow" Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Barra Superior de Layout & Modos de Transmissão -->
+            <StackPanel x:Name="ViewToolbar" Grid.Row="0" Margin="0,0,0,10">
+                <WrapPanel Orientation="Horizontal">
+                    <Button x:Name="MenuModeBtn" Content="☰ Menu: Completo" ToolTip="Alternar Sidebar: Completo / Reduzido / Oculto (B)"
+                            Padding="9,6" Margin="0,0,6,4" Click="OnCycleSidebarMode"/>
+                    <Button x:Name="ToggleEpgBtn" Content="📅 Ocultar EPG" ToolTip="Mostrar ou ocultar Guia EPG (E)"
+                            Padding="9,6" Margin="0,0,6,4" Click="OnToggleEpg"/>
+                    <Button x:Name="ToggleGridBtn" Content="📺 Ocultar Grade" ToolTip="Mostrar ou ocultar Grade de Canais (T)"
+                            Padding="9,6" Margin="0,0,6,4" Click="OnToggleGrid"/>
+                    <Button x:Name="TogglePlayerBtn" Content="◳ Ocultar Player" ToolTip="Reduzir/Ocultar player embutido para navegar"
+                            Padding="9,6" Margin="0,0,6,4" Click="OnTogglePlayerVisibility"/>
+                    <Button Content="📁 Gravações" ToolTip="Abrir pasta onde as gravações são salvas (Vídeos\TV Local)"
+                            Padding="9,6" Margin="0,0,14,4" Click="OnOpenRecordingsFolder"/>
+
+                    <Button x:Name="ModeTheaterBtn" Content="🎭 Teatro" ToolTip="Expandir vídeo na janela inteira (T)"
+                            Padding="9,6" Margin="0,0,6,4" Click="OnToggleTheaterMode"/>
+                    <Button Content="⊞ Multi-Stream" ToolTip="Assistir vários canais ao mesmo tempo (G)"
+                            Padding="9,6" Margin="0,0,6,4" Click="OnOpenMultiStream"/>
+                    <Button Content="◱ PiP" ToolTip="Abrir em Mini Player Sempre no Topo (P)"
+                            Padding="9,6" Margin="0,0,6,4" Click="OnOpenPipMode"/>
+                    <Button Content="⧉ Janela Própria" ToolTip="Destacar transmissão em janela independente (W)"
+                            Padding="9,6" Margin="0,0,6,4" Click="OnOpenDetachedWindow"/>
+                    <Button Content="⛶ Tela Cheia" ToolTip="Tela cheia sem bordas (F / F11)"
+                            Style="{StaticResource PrimaryButton}" Padding="11,6" Margin="0,0,0,4" Click="OnToggleFullscreen"/>
+                </WrapPanel>
+
+                <!-- Barra de Feedback de Atividade em Segundo Plano -->
+                <Border x:Name="ActivityBanner" Visibility="Collapsed" Margin="0,6,0,0"
+                        Background="#132242" BorderBrush="#2563EB" BorderThickness="1" CornerRadius="8" Padding="12,7">
+                    <DockPanel>
+                        <ProgressBar DockPanel.Dock="Right" Width="110" Height="6" IsIndeterminate="True"
+                                     Background="#1E293B" Foreground="#60A5FA" BorderThickness="0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ActivityText" Text="Carregando..." FontSize="12.5" Foreground="#DBEAFE"
+                                   FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    </DockPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- Welcome Hero (quando não há listas) -->
+            <Border x:Name="WelcomeHero" Grid.Row="1" Grid.RowSpan="4" Visibility="Collapsed"
+                    Background="#0F1624" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="16"
+                    Padding="38,32" MaxWidth="520" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Bem-vindo ao TV Local (C# WPF)" FontSize="22" FontWeight="Bold"
+                               HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                    <TextBlock Text="Importe sua playlist M3U/M3U8, conecte um servidor Xtream Codes ou carregue os streams públicos de demonstração para testar com aceleração nativa LibVLC."
+                               Foreground="#94A3B8" TextWrapping="Wrap" TextAlignment="Center" LineHeight="20" Margin="0,0,0,20"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="Testar com Lista Demo" Style="{StaticResource PrimaryButton}" Margin="0,0,10,0" Click="OnQuickDemoClick"/>
+                        <Button Content="Adicionar M3U / Xtream" Click="OnOpenAddSource"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Top Stage: Player + EPG -->
+            <Grid x:Name="StageContainer" Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition x:Name="EpgCol" Width="310"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Player Card -->
+                <Border x:Name="PlayerCardBorder" Grid.Column="0" Background="#0F1624" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="14">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition x:Name="PlayerControlsRow" Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Border x:Name="VideoHostBorder" Grid.Row="0" Background="#05080F">
+                            <Grid Background="#05080F">
+                                <!-- Overlay escuro quando nenhum canal está ativo -->
+                                <Border x:Name="IdleOverlay" Background="#05080F" Padding="24">
+                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <TextBlock Text="📺" FontSize="34" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                        <TextBlock Text="Pronto para reproduzir" FontSize="16" FontWeight="SemiBold"
+                                                   Foreground="#E2E8F0" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Clique em qualquer canal ou filme na grade abaixo para iniciar"
+                                                   FontSize="12.5" Foreground="#64748B" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- VideoView começa Collapsed para evitar fundo branco nativo do HwndHost antes do playback -->
+                                <vlc:VideoView x:Name="PlayerView" Background="Black" Visibility="Collapsed"/>
+
+                                <!-- Overlay quando em PiP ou Janela Própria -->
+                                <Border x:Name="DetachedOverlay" Visibility="Collapsed" Background="#0F1624" Padding="24">
+                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <TextBlock Text="Transmitindo em janela separada" FontSize="17" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                                        <TextBlock Text="Você pode continuar navegando nos canais abaixo — clicar em um canal atualiza a janela destacada."
+                                                   Foreground="#94A3B8" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="400" Margin="0,0,0,14"/>
+                                        <Button Content="↙ Trazer transmissão de volta para cá" Style="{StaticResource PrimaryButton}"
+                                                HorizontalAlignment="Center" Click="OnDockBackFromOverlay"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- Player Controls & Timeline Bar -->
+                        <StackPanel x:Name="PlayerControlsBar" Grid.Row="1" Margin="14,8,14,10">
+                            <!-- Linha do Tempo (Filmes, Séries, Animes & Duração) -->
+                            <Grid x:Name="TimelineRow" Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock x:Name="CurrentTimeText" Grid.Column="0" Text="00:00" FontSize="11.5"
+                                           Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                                <Slider x:Name="SeekSlider" Grid.Column="1" Minimum="0" Maximum="100" Value="0"
+                                        IsMoveToPointEnabled="True" VerticalAlignment="Center"
+                                        PreviewMouseLeftButtonDown="OnSeekMouseDown"
+                                        PreviewMouseLeftButtonUp="OnSeekMouseUp"
+                                        ValueChanged="OnSeekValueChanged"/>
+
+                                <TextBlock x:Name="TotalTimeText" Grid.Column="2" Text="AO VIVO" FontSize="11.5"
+                                           Foreground="#93C5FD" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,8,0"/>
+
+                                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button x:Name="SeekBackBtn" Content="⏪ -10s" ToolTip="Voltar 10 segundos (←)"
+                                            FontSize="11" Padding="7,3" Margin="0,0,4,0" Click="OnSeekBackClick"/>
+                                    <Button x:Name="SeekFwdBtn" Content="+10s ⏩" ToolTip="Avançar 10 segundos (→)"
+                                            FontSize="11" Padding="7,3" Margin="0,0,4,0" Click="OnSeekForwardClick"/>
+                                    <Button x:Name="SpeedBtn" Content="1.0x" ToolTip="Velocidade de reprodução"
+                                            FontSize="11" Padding="7,3" Click="OnCycleSpeedClick"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Linha de Transporte e Áudio -->
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button x:Name="PlayPauseBtn" Content="▶" ToolTip="Play / Pausar (Espaço)" Padding="10,6" Margin="0,0,5,0" Click="OnPlayPauseClick"/>
+                                    <Button x:Name="ReloadBtn" Content="🔄 Atualizar" ToolTip="Recarregar transmissão (R)" Padding="9,6" Margin="0,0,5,0" Click="OnReloadStreamClick"/>
+                                    <Button x:Name="RecordBtn" Content="⏺ Gravar" ToolTip="Gravar transmissão atual em arquivo .ts" Padding="9,6" Margin="0,0,5,0" Click="OnToggleRecordClick"/>
+                                    <Button Content="⏹" ToolTip="Parar" Padding="9,6" Margin="0,0,5,0" Click="OnStopClick"/>
+                                    <Button Content="▲" ToolTip="Canal anterior (↑)" Padding="8,6" Margin="0,0,4,0" Click="OnPrevChannelClick"/>
+                                    <Button Content="▼" ToolTip="Próximo canal (↓)" Padding="8,6" Margin="0,0,8,0" Click="OnNextChannelClick"/>
+                                    <Button x:Name="MuteBtn" Content="🔊" ToolTip="Mudo (M)" Padding="8,6" Margin="0,0,6,0" Click="OnMuteClick"/>
+                                    <Slider x:Name="VolumeSlider" Width="74" Minimum="0" Maximum="100" Value="90"
+                                            VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="OnVolumeChanged"/>
+                                    <Button x:Name="FavActiveBtn" Content="☆ Favoritar" Margin="0,0,5,0" Click="OnToggleActiveFavorite"/>
+                                    <Button x:Name="HideControlsBtn" Content="👁" ToolTip="Ocultar/Mostrar controles em Tela Cheia (H)"
+                                            Visibility="Collapsed" Padding="8,6" Margin="0,0,5,0" Click="OnHideFullscreenControls"/>
+                                    <Button x:Name="FullscreenBtn" Content="⛶" ToolTip="Tela cheia (F)" Padding="9,6" Click="OnToggleFullscreen"/>
+                                </StackPanel>
+
+                                <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                    <TextBlock x:Name="ActiveChannelTitle" Text="Selecione um canal abaixo" FontWeight="Bold" FontSize="14.5" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="ActiveEpgLine" Text="Clique em um card para iniciar a reprodução" FontSize="12" Foreground="#94A3B8" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- EPG Card (corrigido cabeçalho sem corte) -->
+                <Border x:Name="EpgPanel" Grid.Column="1" Margin="14,0,0,0" Background="#0F1624" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="14" Padding="14">
+                    <DockPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button x:Name="SyncEpgBtn" Content="🔄" ToolTip="Sincronizar EPG da conta atual" FontSize="11.5" Padding="7,4" Margin="0,0,4,0" Click="OnSyncAccountEpgClick"/>
+                                <Button Content="XMLTV" ToolTip="Importar guia XMLTV manual" FontSize="11.5" Padding="8,4" Margin="0,0,4,0" Click="OnOpenEpgImport"/>
+                                <Button Content="✕" ToolTip="Ocultar painel EPG (E)" FontSize="11" Padding="7,4" Click="OnToggleEpg"/>
+                            </StackPanel>
+                            <TextBlock Text="Guia EPG" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                        </DockPanel>
+
+                        <TextBlock x:Name="EpgEmptyText" DockPanel.Dock="Top" Foreground="#94A3B8" FontSize="12.5"
+                                   TextWrapping="Wrap" Text="Selecione um canal para visualizar a programação."/>
+
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl x:Name="EpgList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{Binding CardBg}" BorderBrush="{Binding CardBorder}" BorderThickness="1"
+                                                CornerRadius="10" Padding="10" Margin="0,0,0,8">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding TimeRange}" FontSize="11.5" Foreground="#93C5FD" Margin="0,0,0,3"/>
+                                                <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#94A3B8"
+                                                           TextWrapping="Wrap" Margin="0,4,0,0" Visibility="{Binding DescVisibility}"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+            </Grid>
+
+            <!-- Redimensionador livre entre Player e Grade -->
+            <GridSplitter x:Name="StageSplitter" Grid.Row="2" Height="10" HorizontalAlignment="Stretch"
+                          Background="Transparent" Cursor="SizeNS" ShowsPreview="True">
+                <GridSplitter.Template>
+                    <ControlTemplate TargetType="GridSplitter">
+                        <Border Background="Transparent">
+                            <Border Width="54" Height="4" CornerRadius="2" Background="#26334D"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </GridSplitter.Template>
+            </GridSplitter>
+
+            <!-- Search Bar -->
+            <DockPanel x:Name="SearchBarPanel" Grid.Row="3" Margin="0,4,0,12">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="ClearRecentsBtn" Content="🗑 Limpar Recentes" Visibility="Collapsed"
+                            FontSize="12" Padding="10,6" Margin="10,0,0,0" Click="OnClearRecentsClick"/>
+                    <TextBlock x:Name="ItemsCountText" VerticalAlignment="Center"
+                               Foreground="#94A3B8" FontSize="12.5" Margin="14,0,0,0"/>
+                </StackPanel>
+                <TextBox x:Name="SearchBox" Tag="Buscar canal, filme, série ou categoria..." TextChanged="OnSearchChanged"/>
+            </DockPanel>
+
+            <!-- Channel Cards Grid (TV ao Vivo / Favoritos / Recentes) -->
+            <ScrollViewer x:Name="ChannelsScroll" Grid.Row="4" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <ItemsControl x:Name="ChannelsGrid">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Width="244" Margin="0,0,12,12" CornerRadius="12" Padding="10"
+                                        Background="{Binding CardBg}" BorderBrush="{Binding CardBorder}" BorderThickness="1"
+                                        Cursor="Hand" Tag="{Binding Channel}"
+                                        MouseLeftButtonUp="OnChannelCardClick"
+                                        MouseRightButtonUp="OnChannelCardRightClick">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#151E30"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="46"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <Border Grid.Column="0" Width="46" Height="46" CornerRadius="9" Background="#151E30" ClipToBounds="True">
+                                            <Grid>
+                                                <TextBlock Text="{Binding Initials}" Foreground="#93C5FD" FontWeight="Bold" FontSize="14"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                <Image Source="{Binding LogoUrl, Converter={StaticResource PosterConverter}}" Stretch="Uniform"/>
+                                            </Grid>
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                            <DockPanel Margin="0,0,0,3">
+                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="4,0,0,0">
+                                                    <Button Content="+⊞" ToolTip="Enviar para Multi-Stream"
+                                                            Padding="5,1" FontSize="11" Margin="0,0,3,0"
+                                                            Tag="{Binding Channel}" Click="OnAddToMultiStream"/>
+                                                    <Button Content="{Binding StarSymbol}"
+                                                            Foreground="{Binding StarBrush}"
+                                                            Padding="6,1" FontSize="13"
+                                                            Tag="{Binding Channel.Id}" Click="OnToggleChannelFavorite"/>
+                                                    <Button Content="✕" ToolTip="Remover dos Recentes"
+                                                            Foreground="#FCA5A5" Visibility="{Binding RemoveRecentVisibility}"
+                                                            Padding="6,1" FontSize="11" Margin="3,0,0,0"
+                                                            Tag="{Binding Channel.Id}" Click="OnRemoveRecentClick"/>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Channel.Name}" FontWeight="SemiBold" FontSize="13.5"
+                                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="#94A3B8"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Button x:Name="LoadMoreChannelsBtn" Content="Carregar mais canais" Visibility="Collapsed"
+                            HorizontalAlignment="Center" Margin="0,6,0,14" Padding="18,9" Click="OnLoadMoreClick"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Catálogo estilo Netflix / Prime Video (Filmes VOD e Séries) -->
+            <ScrollViewer x:Name="VodCatalogScroll" Grid.Row="4" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,0,6,18">
+                    <!-- Banner Destaque (Hero) -->
+                    <Border x:Name="VodHeroBanner" CornerRadius="14" BorderBrush="#24324B" BorderThickness="1"
+                            Padding="24" Margin="0,0,0,22">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#16223B" Offset="0"/>
+                                <GradientStop Color="#0D1422" Offset="0.55"/>
+                                <GradientStop Color="#090D16" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,24,0">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <Border Background="#2563EB" CornerRadius="6" Padding="8,3" Margin="0,0,8,0">
+                                        <TextBlock Text="EM DESTAQUE" FontSize="10.5" FontWeight="Bold" Foreground="White"/>
+                                    </Border>
+                                    <Border Background="#1A263D" CornerRadius="6" Padding="8,3" Margin="0,0,8,0">
+                                        <TextBlock x:Name="HeroCategoryText" FontSize="11" Foreground="#93C5FD"/>
+                                    </Border>
+                                    <Border x:Name="HeroRatingBadge" Background="#2B2312" CornerRadius="6" Padding="8,3">
+                                        <TextBlock x:Name="HeroRatingText" FontSize="11" FontWeight="Bold" Foreground="#FBBF24"/>
+                                    </Border>
+                                </StackPanel>
+
+                                <TextBlock x:Name="HeroTitleText" FontSize="24" FontWeight="Bold" TextWrapping="Wrap"
+                                           Margin="0,0,0,8"/>
+                                <TextBlock x:Name="HeroPlotText" FontSize="13" Foreground="#CBD5E1" TextWrapping="Wrap"
+                                           MaxHeight="60" TextTrimming="CharacterEllipsis" LineHeight="19" Margin="0,0,0,16"/>
+
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="▶  Assistir Agora" Style="{StaticResource PrimaryButton}"
+                                            Padding="18,10" Margin="0,0,10,0" Click="OnPlayHeroClick"/>
+                                    <Button x:Name="HeroDetailsBtn" Content="ℹ  Mais Detalhes" Padding="14,10"
+                                            Margin="0,0,10,0" Click="OnHeroDetailsClick"/>
+                                    <Button x:Name="HeroFavBtn" Content="☆  Minha Lista" Padding="14,10"
+                                            Margin="0,0,10,0" Click="OnFavHeroClick"/>
+                                    <Button x:Name="HeroMultiBtn" Content="+⊞  Multi-Stream" Padding="14,10"
+                                            Click="OnMultiHeroClick"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <Border Grid.Column="1" Width="154" Height="224" CornerRadius="10" Background="#111927"
+                                    BorderBrush="#2A3955" BorderThickness="1" ClipToBounds="True">
+                                <Grid>
+                                    <TextBlock Text="🎬" FontSize="36" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.5"/>
+                                    <Image x:Name="HeroPosterImg" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- Prateleiras Horizontais por Categoria (quando "Todas" sem busca) -->
+                    <ItemsControl x:Name="VodShelvesList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,0,0,22">
+                                    <DockPanel Margin="2,0,4,10">
+                                        <Button DockPanel.Dock="Right" Content="{Binding SeeAllLabel}"
+                                                FontSize="12" Padding="10,4" Tag="{Binding CategoryName}"
+                                                Click="OnVodSeeAllCategoryClick"/>
+                                        <TextBlock Text="{Binding CategoryName}" FontSize="17" FontWeight="Bold"
+                                                   VerticalAlignment="Center"/>
+                                    </DockPanel>
+
+                                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                                                  PreviewMouseWheel="OnShelfPreviewMouseWheel">
+                                        <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource VodPosterCardTemplate}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Grade de Posters (quando seleciona categoria ou pesquisa) -->
+                    <ItemsControl x:Name="VodPosterGrid" ItemTemplate="{StaticResource VodPosterCardTemplate}" Visibility="Collapsed">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+
+                    <Button x:Name="LoadMoreVodBtn" Content="Carregar mais títulos" Visibility="Collapsed"
+                            HorizontalAlignment="Center" Margin="0,6,0,14" Padding="18,9" Click="OnLoadMoreClick"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Overlay Inicial de Carregamento (não trava a janela) -->
+        <Border x:Name="StartupLoadingOverlay" Grid.ColumnSpan="2" Background="#E6080C14" Visibility="Visible">
+            <Border Background="#0F1624" BorderBrush="#26334D" BorderThickness="1" CornerRadius="16"
+                    Padding="32,26" Width="400" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,14">
+                        <Border Width="42" Height="42" CornerRadius="10" Margin="0,0,12,0">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#3B82F6" Offset="0"/>
+                                    <GradientStop Color="#06B6D4" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <TextBlock Text="C#" Foreground="White" FontWeight="ExtraBold" FontSize="16"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="TV Local" FontSize="20" FontWeight="Bold"/>
+                            <TextBlock Text="Iniciando aplicativo..." FontSize="12" Foreground="#94A3B8"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <ProgressBar Height="6" IsIndeterminate="True" Background="#1E293B" Foreground="#3B82F6"
+                                 BorderThickness="0" Margin="0,0,0,12"/>
+                    <TextBlock x:Name="StartupStatusText" Text="Inicializando motor de vídeo LibVLC..."
+                               FontSize="13" Foreground="#CBD5E1" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+        </Border>
+    </Grid>
+</Window>

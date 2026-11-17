@@ -1,0 +1,73 @@
+<Window x:Class="TVLocal.Wpf.PlayerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
+        Title="TV Local — Transmissão"
+        Width="960" Height="580"
+        MinWidth="340" MinHeight="210"
+        Background="#000000"
+        Foreground="#F1F5F9"
+        ResizeMode="CanResizeWithGrip"
+        KeyDown="OnWindowKeyDown">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition x:Name="TopBarRow" Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition x:Name="BottomBarRow" Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Barra Superior (arrastável no modo PiP sem borda) -->
+        <Border x:Name="TopBar" Grid.Row="0" Background="#0F1624" BorderBrush="#1E293B" BorderThickness="0,0,0,1"
+                Padding="10,6" MouseLeftButtonDown="OnTopBarMouseDown">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button x:Name="TopmostBtn" Content="📌 Topo" FontSize="11.5" Padding="8,4" Margin="0,0,6,0" Click="OnToggleTopmost"/>
+                    <Button x:Name="SwitchModeBtn" Content="PiP" FontSize="11.5" Padding="8,4" Margin="0,0,6,0" Click="OnSwitchPipMode"/>
+                    <Button Content="↙ Embutir" ToolTip="Voltar para a janela principal" FontSize="11.5" Padding="8,4" Margin="0,0,6,0" Click="OnDockBackClick"/>
+                    <Button Content="⛶" ToolTip="Tela cheia (F)" FontSize="11.5" Padding="8,4" Margin="0,0,6,0" Click="OnToggleFullscreen"/>
+                    <Button Content="✕" ToolTip="Fechar player" FontSize="11.5" Padding="8,4" Click="OnCloseClick"/>
+                </StackPanel>
+                <TextBlock x:Name="TitleText" Text="Transmissão" FontWeight="SemiBold" FontSize="12.5"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,10,0"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Vídeo -->
+        <vlc:VideoView x:Name="DetachedVideoView" Grid.Row="1" Background="Black"/>
+
+        <!-- Barra Inferior de Controles & Linha do Tempo -->
+        <Border x:Name="BottomBar" Grid.Row="2" Background="#0F1624" BorderBrush="#1E293B" BorderThickness="0,1,0,0" Padding="10,7">
+            <StackPanel>
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="CurrentTimeText" Grid.Column="0" Text="00:00" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <Slider x:Name="SeekSlider" Grid.Column="1" Minimum="0" Maximum="100" Value="0" IsMoveToPointEnabled="True"
+                            VerticalAlignment="Center" PreviewMouseLeftButtonDown="OnSeekMouseDown"
+                            PreviewMouseLeftButtonUp="OnSeekMouseUp" ValueChanged="OnSeekValueChanged"/>
+                    <TextBlock x:Name="TotalTimeText" Grid.Column="2" Text="● AO VIVO" FontSize="11" Foreground="#93C5FD" FontWeight="SemiBold"
+                               VerticalAlignment="Center" Margin="8,0,0,0"/>
+                </Grid>
+
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="SeekBackBtn" Content="⏪ -10s" ToolTip="Voltar 10s (←)" FontSize="11" Padding="7,4" Margin="0,0,4,0" Click="OnSeekBackClick"/>
+                        <Button x:Name="PlayPauseBtn" Content="▶" ToolTip="Play / Pausar (Espaço)" Padding="8,4" Margin="0,0,4,0" Click="OnPlayPauseClick"/>
+                        <Button x:Name="SeekFwdBtn" Content="+10s ⏩" ToolTip="Avançar 10s (→)" FontSize="11" Padding="7,4" Margin="0,0,4,0" Click="OnSeekForwardClick"/>
+                        <Button Content="🔄" ToolTip="Atualizar transmissão (R)" Padding="8,4" Margin="0,0,4,0" Click="OnReloadClick"/>
+                        <Button x:Name="RecordBtn" Content="⏺" ToolTip="Gravar transmissão em Vídeos\TV Local" Padding="8,4" Margin="0,0,4,0" Click="OnToggleRecordClick"/>
+                        <Button x:Name="SpeedBtn" Content="1.0x" ToolTip="Velocidade" FontSize="11" Padding="7,4" Margin="0,0,6,0" Click="OnCycleSpeedClick"/>
+                        <Button x:Name="MuteBtn" Content="🔊" ToolTip="Mudo (M)" Padding="8,4" Margin="0,0,6,0" Click="OnMuteClick"/>
+                        <Slider x:Name="VolumeSlider" Width="76" Minimum="0" Maximum="100" Value="90"
+                                VerticalAlignment="Center" ValueChanged="OnVolumeChanged"/>
+                    </StackPanel>
+                    <TextBlock x:Name="SubtitleText" Foreground="#94A3B8" FontSize="11.5"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,10,0"/>
+                </DockPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

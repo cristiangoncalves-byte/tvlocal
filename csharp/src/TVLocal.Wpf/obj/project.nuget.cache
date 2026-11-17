@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "/0U6vvSqvPM=",
+  "success": true,
+  "projectFilePath": "C:\\Meus Projetos\\TV Local\\csharp\\src\\TVLocal.Wpf\\TVLocal.Wpf.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\tecno\\.nuget\\packages\\libvlcsharp\\3.10.2\\libvlcsharp.3.10.2.nupkg.sha512",
+    "C:\\Users\\tecno\\.nuget\\packages\\libvlcsharp.wpf\\3.10.2\\libvlcsharp.wpf.3.10.2.nupkg.sha512",
+    "C:\\Users\\tecno\\.nuget\\packages\\videolan.libvlc.windows\\3.0.24\\videolan.libvlc.windows.3.0.24.nupkg.sha512"
+  ],
+  "logs": []
+}

@@ -1,0 +1,91 @@
+<Window x:Class="TVLocal.Wpf.MultiStreamWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="TV Local — Multi-Stream (Mosaico)"
+        Width="1440" Height="860"
+        MinWidth="960" MinHeight="600"
+        Background="#080C14"
+        Foreground="#F1F5F9"
+        KeyDown="OnWindowKeyDown">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition x:Name="TopToolbarRow" Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Barra Superior Multi-Stream -->
+        <Border x:Name="TopToolbar" Grid.Row="0" Background="#0F1624" BorderBrush="#1E293B" BorderThickness="0,0,0,1" Padding="14,10">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                    <Button x:Name="ToggleDrawerBtn" Content="☰ Ocultar Canais" Padding="10,6" Margin="0,0,10,0" Click="OnToggleDrawer"/>
+                    <Button x:Name="Layout2Btn" Content="2 Telas (2×1)" Padding="10,6" Margin="0,0,5,0" Tag="2x1" Click="OnLayoutClick"/>
+                    <Button x:Name="Layout4Btn" Content="4 Telas (2×2)" Style="{StaticResource PrimaryButton}" Padding="10,6" Margin="0,0,5,0" Tag="2x2" Click="OnLayoutClick"/>
+                    <Button x:Name="Layout6Btn" Content="6 Telas (3×2)" Padding="10,6" Margin="0,0,5,0" Tag="3x2" Click="OnLayoutClick"/>
+                    <Button x:Name="LayoutFocusBtn" Content="Foco (1 + 3)" Padding="10,6" Tag="1+3" Click="OnLayoutClick"/>
+                </StackPanel>
+
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="🔇 Mutar Todos" Padding="10,6" Margin="0,0,6,0" Click="OnMuteAllClick"/>
+                    <Button Content="🔊 Desmutar Todos" Padding="10,6" Margin="0,0,10,0" Click="OnUnmuteAllClick"/>
+                    <Button Content="⛶ Tela Cheia" Style="{StaticResource PrimaryButton}" Padding="12,6" Click="OnToggleFullscreen"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Conteúdo Principal: Drawer de Canais + Mosaico -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="DrawerCol" Width="280"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Drawer Esquerdo de Seleção -->
+            <Border x:Name="ChannelDrawer" Grid.Column="0" Background="#0F1624" BorderBrush="#1E293B" BorderThickness="0,0,1,0" Padding="12">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                        <DockPanel Margin="0,0,0,8">
+                            <Border DockPanel.Dock="Right" Background="#1D4ED8" CornerRadius="6" Padding="8,3">
+                                <TextBlock x:Name="TargetSlotText" Text="Slot 1" FontWeight="Bold" FontSize="11.5" Foreground="White"/>
+                            </Border>
+                            <TextBlock Text="Enviar canal para:" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
+                        </DockPanel>
+
+                        <CheckBox x:Name="AutoAdvanceCheck" Content="Avançar para próximo slot vazio"
+                                  IsChecked="True" Foreground="#94A3B8" FontSize="12" Margin="0,0,0,8"/>
+
+                        <ComboBox x:Name="CategoryCombo" Margin="0,0,0,8" SelectionChanged="OnFilterChanged"/>
+                        <TextBox x:Name="SearchBox" Tag="Buscar canal ou filme..." TextChanged="OnSearchChanged"/>
+                    </StackPanel>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="PickerChannelsList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#151E30" CornerRadius="8" Padding="9,7" Margin="0,0,0,6"
+                                            Cursor="Hand" Tag="{Binding}" MouseLeftButtonUp="OnPickerChannelClick">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#1D2940"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12.5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Group}" FontSize="11" Foreground="#94A3B8" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <!-- Grade Mosaico -->
+            <Grid x:Name="MosaicGrid" Grid.Column="1" Margin="8"/>
+        </Grid>
+    </Grid>
+</Window>
