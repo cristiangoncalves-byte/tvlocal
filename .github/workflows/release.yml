@@ -30,9 +30,11 @@ jobs:
         id: ver
         shell: pwsh
         run: |
-          $raw = "${{ github.event.inputs.version || github.ref_name }}"
+          $inputVer = "${{ github.event.inputs.version }}"
+          $refName = "${{ github.ref_name }}"
+          $raw = if ($inputVer) { $inputVer } else { $refName }
           $clean = $raw.TrimStart('v', 'V')
-          if (-not $clean) { $clean = "1.0.0" }
+          if (-not $clean -or $clean -eq 'master' -or $clean -eq 'main') { $clean = "1.0.0" }
           echo "version=$clean" >> $env:GITHUB_OUTPUT
 
       - name: Publish TVLocal.Wpf
@@ -66,9 +68,11 @@ jobs:
       - name: Sync release version
         shell: pwsh
         run: |
-          $raw = "${{ github.event.inputs.version || github.ref_name }}"
+          $inputVer = "${{ github.event.inputs.version }}"
+          $refName = "${{ github.ref_name }}"
+          $raw = if ($inputVer) { $inputVer } else { $refName }
           $clean = $raw.TrimStart('v', 'V')
-          if (-not $clean) { $clean = "1.0.0" }
+          if (-not $clean -or $clean -eq 'master' -or $clean -eq 'main') { $clean = "1.0.0" }
           npm version $clean --no-git-tag-version --workspace=@tv-local/desktop --allow-same-version
           "{ `"version`": `"$clean`" }" | Set-Content -Path apps/web/public/version.json -Encoding UTF8
 
@@ -88,6 +92,20 @@ jobs:
     needs: [build-windows-wpf, build-desktop-electron]
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve tag
+        id: tag
+        shell: bash
+        run: |
+          INPUT_VER="${{ github.event.inputs.version }}"
+          REF_NAME="${{ github.ref_name }}"
+          if [ -n "$INPUT_VER" ]; then
+            CLEAN="${INPUT_VER#v}"
+            CLEAN="${CLEAN#V}"
+            echo "tag_name=v${CLEAN}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag_name=${REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Download WPF artifact
         uses: actions/download-artifact@v4
         with:
@@ -103,32 +121,47 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.version && format('v{0}', github.event.inputs.version) || github.ref_name }}
+          tag_name: ${{ steps.tag.outputs.tag_name }}
           generate_release_notes: true
           files: release-assets/*
 
   publish-mobile-ota:
     runs-on: ubuntu-latest
-    if: ${{ secrets.EXPO_TOKEN != '' }}
     steps:
+      - name: Check EXPO_TOKEN
+        id: expo_check
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -n "$EXPO_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
+        if: steps.expo_check.outputs.enabled == 'true'
         uses: actions/checkout@v4
 
       - name: Setup Node
+        if: steps.expo_check.outputs.enabled == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
       - name: Setup Expo & EAS
+        if: steps.expo_check.outputs.enabled == 'true'
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
+        if: steps.expo_check.outputs.enabled == 'true'
         run: npm ci
 
       - name: Publish Mobile OTA Update
+        if: steps.expo_check.outputs.enabled == 'true'
         working-directory: apps/mobile
         run: eas update --branch production --message "Release ${{ github.ref_name }}" --non-interactive
