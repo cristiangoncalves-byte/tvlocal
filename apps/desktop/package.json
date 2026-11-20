@@ -9,7 +9,7 @@
     "dev": "node scripts/dev.mjs",
     "build": "npm --workspace=@tv-local/web run build && tsc",
     "start": "npm run build && electron .",
-    "package:win": "npm run build && electron-builder --win",
+    "package:win": "npm run build && electron-builder --win --publish never",
     "typecheck": "tsc --noEmit"
   },
   "build": {
