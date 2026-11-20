@@ -288,7 +288,7 @@ export function SettingsModal({
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={styles.settingTitle}>Versão v{getMobileAppVersion()}</Text>
                     <Text style={styles.muted}>
-                      {updateStatus || 'Baixa atualizações OTA ou verifica nova versão no GitHub.'}
+                      {updateStatus || 'Busca e aplica atualizações OTA diretamente do Expo (u.expo.dev).'}
                     </Text>
                   </View>
                   <Pressable
