@@ -29,6 +29,7 @@ import {
   DEFAULT_APP_THEME,
   fetchXtreamAllContent,
   fetchXtreamShortEpg,
+  fuzzyFilterChannels,
   getNowAndNextPrograms,
   parseM3u,
   parseXmltv,
@@ -125,6 +126,8 @@ export default function App() {
   const [videoContentFit, setVideoContentFit] = useState<MobileVideoFit>('contain');
   const [forceLandscape, setForceLandscape] = useState(false);
   const [forceLandscapeFullscreen, setForceLandscapeFullscreen] = useState(true);
+  const [inFullscreenMode, setInFullscreenMode] = useState(false);
+  const [fullscreenControlsVisible, setFullscreenControlsVisible] = useState(true);
 
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
@@ -162,8 +165,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void applyLandscapeLock(forceLandscape);
-  }, [forceLandscape, applyLandscapeLock]);
+    void applyLandscapeLock(forceLandscape || (inFullscreenMode && forceLandscapeFullscreen));
+  }, [forceLandscape, inFullscreenMode, forceLandscapeFullscreen, applyLandscapeLock]);
+
+  useEffect(() => {
+    setFullscreenControlsVisible(true);
+  }, [activeChannel?.id, playerSizeMode]);
 
   useEffect(() => {
     return () => {
@@ -381,13 +388,16 @@ export default function App() {
     return ['Todas', ...sorted];
   }, [sectionChannels]);
 
-  const filteredChannels = useMemo(() => {
-    const q = debouncedQuery.trim().toLowerCase();
-    return sectionChannels.filter((ch) => {
-      if (selectedCategory !== 'Todas' && ch.group !== selectedCategory) return false;
-      if (!q) return true;
-      return ch.name.toLowerCase().includes(q) || ch.group.toLowerCase().includes(q);
-    });
+  const { filteredChannels, searchSuggestion } = useMemo(() => {
+    const byCategory =
+      selectedCategory === 'Todas'
+        ? sectionChannels
+        : sectionChannels.filter((ch) => ch.group === selectedCategory);
+    const res = fuzzyFilterChannels(byCategory, debouncedQuery);
+    return {
+      filteredChannels: res.items,
+      searchSuggestion: res.correctedQuery,
+    };
   }, [sectionChannels, selectedCategory, debouncedQuery]);
 
   const vodShelves = useMemo(() => {
@@ -403,7 +413,7 @@ export default function App() {
       .sort((a, b) => b[1].length - a[1].length)
       .slice(0, 10)
       .map(([group, items]) => ({ group, total: items.length, items: items.slice(0, 12) }));
-  }, [section, selectedCategory, searchQuery, sectionChannels]);
+  }, [section, selectedCategory, debouncedQuery, sectionChannels]);
 
   const heroCatalogItem = useMemo(() => {
     if (section !== 'vod' && section !== 'series') return null;
@@ -903,9 +913,14 @@ export default function App() {
   };
 
   const handleCyclePlayerSize = () => {
-    setPlayerSizeMode((curr) =>
-      curr === 'normal' ? 'large' : curr === 'large' ? 'expanded' : 'normal',
-    );
+    setPlayerSizeMode((curr) => {
+      const next = curr === 'normal' ? 'large' : curr === 'large' ? 'expanded' : 'normal';
+      if (next !== 'expanded') {
+        setInFullscreenMode(false);
+        setFullscreenControlsVisible(true);
+      }
+      return next;
+    });
   };
 
   const handleToggleForceLandscape = () => {
@@ -913,13 +928,23 @@ export default function App() {
   };
 
   const handleEnterFullscreen = () => {
-    videoViewRef.current?.enterFullscreen().catch(() => undefined);
+    if (playerSizeMode === 'expanded') {
+      setPlayerSizeMode('normal');
+      setInFullscreenMode(false);
+      setFullscreenControlsVisible(true);
+    } else {
+      setPlayerSizeMode('expanded');
+      setInFullscreenMode(true);
+      setFullscreenControlsVisible(true);
+    }
   };
 
   const handleCloseActivePlayer = () => {
     player.pause();
     setActiveChannel(null);
     setShowEpgDetails(false);
+    setInFullscreenMode(false);
+    setFullscreenControlsVisible(true);
     if (playerSizeMode === 'expanded') {
       setPlayerSizeMode('normal');
     }
@@ -948,30 +973,42 @@ export default function App() {
       style={[
         styles.playerBox,
         { backgroundColor: theme.surface },
-        isExpandedPlayer && { flex: 1, marginBottom: 4 },
+        isExpandedPlayer && { flex: 1, marginBottom: 0, borderRadius: 0 },
         isLandscape && !isExpandedPlayer && { flex: playerSizeMode === 'large' ? 1.55 : 1.15, marginBottom: 0 },
       ]}
     >
-      <VideoView
-        ref={videoViewRef}
+      <View
         style={[
-          styles.video,
+          styles.videoWrap,
           isExpandedPlayer || isLandscape
             ? { flex: 1, height: undefined }
             : { height: portraitVideoHeight },
         ]}
-        player={player}
-        contentFit={videoContentFit}
-        fullscreenOptions={{
-          enable: true,
-          orientation: forceLandscape || forceLandscapeFullscreen ? 'landscape' : 'default',
-        }}
-        onFullscreenExit={() => {
-          void applyLandscapeLock(forceLandscape);
-        }}
-        allowsPictureInPicture
-        nativeControls
-      />
+      >
+        <VideoView
+          ref={videoViewRef}
+          style={{ flex: 1 }}
+          player={player}
+          contentFit={videoContentFit}
+          fullscreenOptions={{
+            enable: true,
+            orientation: forceLandscape || forceLandscapeFullscreen ? 'landscape' : 'default',
+          }}
+          onFullscreenExit={() => {
+            void applyLandscapeLock(forceLandscape || (inFullscreenMode && forceLandscapeFullscreen));
+          }}
+          allowsPictureInPicture
+          controllerAutoShow
+          nativeControls={!isExpandedPlayer || fullscreenControlsVisible}
+        />
+        {isExpandedPlayer && !fullscreenControlsVisible && (
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setFullscreenControlsVisible(true)}
+          />
+        )}
+      </View>
+      {(!isExpandedPlayer || fullscreenControlsVisible) && (
       <View style={[styles.playerInfo, (isExpandedPlayer || isLandscape) && styles.playerInfoCompact]}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
           <Text style={[styles.playerChannelName, { flex: 1 }]} numberOfLines={1}>
@@ -1077,11 +1114,24 @@ export default function App() {
             </Text>
           </Pressable>
           <Pressable
-            style={[styles.ctrlBtn, { backgroundColor: theme.card }]}
+            style={[
+              styles.ctrlBtn,
+              { backgroundColor: isExpandedPlayer ? theme.accent : theme.card },
+            ]}
             onPress={handleEnterFullscreen}
           >
-            <Text style={styles.ctrlBtnText}>⛶ Tela Cheia</Text>
+            <Text style={styles.ctrlBtnText}>
+              {isExpandedPlayer ? '⤡ Sair Tela Cheia' : '⛶ Tela Cheia'}
+            </Text>
           </Pressable>
+          {isExpandedPlayer && (
+            <Pressable
+              style={[styles.ctrlBtn, { backgroundColor: theme.card }]}
+              onPress={() => setFullscreenControlsVisible(false)}
+            >
+              <Text style={styles.ctrlBtnText}>👁 Ocultar</Text>
+            </Pressable>
+          )}
           {isExpandedPlayer && (
             <Pressable
               style={[styles.ctrlBtn, { backgroundColor: theme.card }]}
@@ -1120,6 +1170,7 @@ export default function App() {
           </View>
         )}
       </View>
+      )}
     </View>
   ) : (
     channels.length === 0 && (
@@ -1144,8 +1195,14 @@ export default function App() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.bg, paddingTop: topInset }]}>
-      <StatusBar style="light" hidden={isExpandedPlayer && isLandscape} />
+    <SafeAreaView
+      style={[
+        styles.container,
+        { backgroundColor: theme.bg, paddingTop: isExpandedPlayer ? 0 : topInset },
+        isExpandedPlayer && { paddingHorizontal: 0 },
+      ]}
+    >
+      <StatusBar style="light" hidden={isExpandedPlayer} />
 
       {/* Header */}
       {!isExpandedPlayer && (
@@ -1258,6 +1315,12 @@ export default function App() {
           </Pressable>
         )}
       </View>
+
+      {searchSuggestion && (
+        <Text style={styles.fuzzyHint}>
+          Mostrando resultados aproximados para: "{searchSuggestion}"
+        </Text>
+      )}
 
       {/* Category Chips */}
       <ScrollView
@@ -1577,7 +1640,9 @@ const styles = StyleSheet.create({
   },
   activityText: { color: '#dbeafe', fontSize: 12.5, fontWeight: '600', flex: 1 },
   playerBox: { borderRadius: 12, overflow: 'hidden', marginBottom: 10 },
+  videoWrap: { width: '100%', height: 205, backgroundColor: '#000', position: 'relative' },
   video: { width: '100%', height: 205, backgroundColor: '#000' },
+  fuzzyHint: { color: '#93c5fd', fontSize: 12, fontWeight: '600', marginBottom: 6 },
   playerInfo: { padding: 10, gap: 4 },
   playerInfoCompact: { paddingVertical: 6, paddingHorizontal: 10, gap: 3 },
   playerChannelName: { color: '#f8fafc', fontWeight: '700', fontSize: 14.5 },

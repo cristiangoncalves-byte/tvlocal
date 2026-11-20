@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   createDemoPlaylist,
   fetchXtreamAllContent,
+  fuzzyFilterChannels,
   parseM3u,
   parseXmltv,
   type Channel,
@@ -364,18 +365,16 @@ export function useIptvStore() {
     ];
   }, [sectionChannels]);
 
-  const filteredChannels = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    return sectionChannels.filter((ch) => {
-      if (selectedCategory !== 'Todas' && ch.group !== selectedCategory) {
-        return false;
-      }
-      if (!q) return true;
-      return (
-        ch.name.toLowerCase().includes(q) ||
-        ch.group.toLowerCase().includes(q)
-      );
-    });
+  const { filteredChannels, searchSuggestion } = useMemo(() => {
+    const byCategory =
+      selectedCategory === 'Todas'
+        ? sectionChannels
+        : sectionChannels.filter((ch) => ch.group === selectedCategory);
+    const res = fuzzyFilterChannels(byCategory, searchQuery);
+    return {
+      filteredChannels: res.items,
+      searchSuggestion: res.correctedQuery,
+    };
   }, [sectionChannels, selectedCategory, searchQuery]);
 
   const favoriteSet = useMemo(() => new Set(state.favorites), [state.favorites]);
@@ -410,6 +409,7 @@ export function useIptvStore() {
     setSearchQuery,
     categories,
     filteredChannels,
+    searchSuggestion,
     activeChannel,
     setActiveChannel,
     activeSeries,

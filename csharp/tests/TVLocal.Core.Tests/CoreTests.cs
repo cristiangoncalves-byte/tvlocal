@@ -259,4 +259,36 @@ public class CoreTests
             if (File.Exists(tempFile)) File.Delete(tempFile);
         }
     }
+
+    [Fact]
+    public void FuzzySearchService_MatchesMisspelledTitlesAndCategories()
+    {
+        var sample = new List<Channel>
+        {
+            new("1", "Aventura Espacial HD", "https://example.com/1.mp4", "Filmes", StreamKind.Vod, "s1"),
+            new("2", "Canal Arena Live", "https://example.com/2.m3u8", "Esportes", StreamKind.Live, "s1"),
+            new("3", "Jornal Central", "https://example.com/3.m3u8", "Notícias", StreamKind.Live, "s1"),
+            new("4", "Série Ação Extrema", "https://example.com/4.mp4", "Séries", StreamKind.Series, "s1"),
+        };
+
+        var res1 = FuzzySearchService.FilterChannels(sample, "aventra espcial");
+        Assert.Single(res1.Items);
+        Assert.Equal("1", res1.Items[0].Id);
+        Assert.Contains("Aventura", res1.CorrectedQuery, StringComparison.OrdinalIgnoreCase);
+
+        var res2 = FuzzySearchService.FilterChannels(sample, "jornl central");
+        Assert.Single(res2.Items);
+        Assert.Equal("3", res2.Items[0].Id);
+        Assert.Contains("Jornal", res2.CorrectedQuery, StringComparison.OrdinalIgnoreCase);
+
+        var resCat = FuzzySearchService.FilterChannels(sample, "esprote");
+        Assert.Single(resCat.Items);
+        Assert.Equal("2", resCat.Items[0].Id);
+        Assert.Equal("Esportes", resCat.CorrectedQuery);
+
+        var resAccent = FuzzySearchService.FilterChannels(sample, "acao");
+        Assert.Single(resAccent.Items);
+        Assert.Equal("4", resAccent.Items[0].Id);
+        Assert.Null(resAccent.CorrectedQuery);
+    }
 }

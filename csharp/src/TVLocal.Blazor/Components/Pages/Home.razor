@@ -43,23 +43,6 @@
                 </button>
             }
         </div>
-
-        @if (Library.Sources.Count > 0)
-        {
-            <div>
-                <div class="section-label">Listas Conectadas</div>
-                @foreach (var src in Library.Sources)
-                {
-                    <div class="source-item">
-                        <div style="min-width:0">
-                            <div class="truncate"><strong>@src.Name</strong></div>
-                            <div class="muted">@src.ChannelCount itens</div>
-                        </div>
-                        <button class="btn btn-secondary btn-sm" @onclick="() => RemoveSourceAsync(src.Id)">✕</button>
-                    </div>
-                }
-            </div>
-        }
     </aside>
     }
 
@@ -91,8 +74,15 @@
             var hideEpgForLarge = _playerSizeMode != "normal";
             var isExpanded = _playerSizeMode == "expanded" && _activeChannel is not null;
             <div class="stage-grid @(hideEpgForLarge ? "stage-full" : "")">
-                <div id="blazor-player-box" class="player-shell size-@_playerSizeMode">
-                    <video id="tvlocal-video" class="player-video" style="object-fit: @_videoFit;" controls playsinline></video>
+                <div id="blazor-player-box" class="player-shell size-@_playerSizeMode @(_hidePlayerControls ? "fs-controls-hidden" : "")">
+                    <div class="player-video-wrap" @onclick="OnPlayerStageClick">
+                        <video id="tvlocal-video" class="player-video" style="object-fit: @_videoFit;" controls playsinline></video>
+                        @if (_hidePlayerControls)
+                        {
+                            <button type="button" class="player-fs-reveal-overlay" aria-label="Mostrar controles"
+                                    @onclick:stopPropagation="true" @onclick="() => _hidePlayerControls = false"></button>
+                        }
+                    </div>
                     <div class="player-bar">
                         <div style="min-width:0; flex:1;">
                             <div style="font-weight:700;">@(_activeChannel?.Name ?? "Selecione um canal abaixo")</div>
@@ -129,6 +119,8 @@
                             <button class="btn btn-secondary btn-sm" @onclick="ToggleVideoFit">
                                 @(_videoFit == "cover" ? "⬌ Ajustar" : "⬌ Preencher")
                             </button>
+                            <button class="btn btn-secondary btn-sm" title="Ocultar controles (clique na tela para exibir)"
+                                    @onclick="() => _hidePlayerControls = true">👁</button>
                             <button class="btn btn-secondary btn-sm" @onclick="ToggleFullscreenAsync">⛶ Tela Cheia</button>
                         </div>
                     </div>
@@ -173,14 +165,22 @@
 
             @if (!isExpanded)
             {
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
-                <input class="search-input" placeholder="Buscar canal, filme, série ou categoria..."
+            var mainFuzzy = FilteredChannelsResult;
+            var filteredList = mainFuzzy.Items;
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+                <input class="search-input" style="flex:1; min-width:220px;" placeholder="Buscar canal, filme, série ou categoria..."
                        @bind="_searchQuery" @bind:event="oninput" />
-                <span class="muted" style="white-space:nowrap;">@FilteredChannels.Count itens</span>
+                <span class="muted" style="white-space:nowrap;">
+                    @filteredList.Count itens
+                    @if (!string.IsNullOrEmpty(mainFuzzy.CorrectedQuery))
+                    {
+                        <span> • Aproximado para "<strong>@mainFuzzy.CorrectedQuery</strong>"</span>
+                    }
+                </span>
             </div>
 
             <div class="channel-grid">
-                @foreach (var ch in FilteredChannels.Take(300))
+                @foreach (var ch in filteredList.Take(300))
                 {
                     var isActive = _activeChannel?.Id == ch.Id;
                     var isFav = Library.IsFavorite(ch.Id);
@@ -492,11 +492,22 @@
 
                 @if (_multiShowPicker)
                 {
+                    var multiFuzzy = MultiFilteredResult;
                     <aside class="multi-picker">
                         <div class="muted" style="color:#93c5fd;">Enviando para: <strong>Tela @(_multiTargetSlot + 1)</strong></div>
-                        <input class="input" placeholder="Buscar canal, filme ou série..." @bind="_multiSearch" @bind:event="oninput" />
+                        <select class="input" @bind="_multiCategory" aria-label="Filtrar categoria no Multi-Tela">
+                            @foreach (var cat in MultiCategories)
+                            {
+                                <option value="@cat">@(cat == "Todas" ? "Todas as categorias" : cat)</option>
+                            }
+                        </select>
+                        <input class="input" placeholder="Buscar canal, filme, série ou categoria..." @bind="_multiSearch" @bind:event="oninput" />
+                        @if (!string.IsNullOrEmpty(multiFuzzy.CorrectedQuery))
+                        {
+                            <div class="fuzzy-hint">Aproximado para: <strong>@multiFuzzy.CorrectedQuery</strong></div>
+                        }
                         <div class="multi-picker-list">
-                            @foreach (var ch in MultiPlayableChannels)
+                            @foreach (var ch in multiFuzzy.Items.Take(150))
                             {
                                 <button class="multi-picker-row" @onclick="() => AssignChannelToTargetSlotAsync(ch)">
                                     <div class="truncate"><strong>@ch.Name</strong></div>
@@ -530,6 +541,7 @@
     private string _playerSizeMode = "normal";
     private string _videoFit = "contain";
     private bool _forceLandscapeFullscreen = true;
+    private bool _hidePlayerControls;
     private int _speedIndex;
     private static readonly double[] BlazorSpeeds = [1.0, 1.25, 1.5, 2.0, 0.75];
 
@@ -544,6 +556,7 @@
     private string _multiLayout = "2x1";
     private bool _multiShowPicker = true;
     private int _multiTargetSlot;
+    private string _multiCategory = "Todas";
     private string _multiSearch = string.Empty;
     private readonly BlazorMultiSlot[] _multiSlots =
     [
@@ -721,18 +734,51 @@
         }
     }
 
-    private List<Channel> FilteredChannels
+    private FuzzySearchResult FilteredChannelsResult
     {
         get
         {
-            var q = _searchQuery.Trim();
-            return SectionChannels.Where(c =>
-            {
-                if (_selectedCategory != "Todas" && c.Group != _selectedCategory) return false;
-                if (string.IsNullOrEmpty(q)) return true;
-                return c.Name.Contains(q, StringComparison.OrdinalIgnoreCase)
-                    || c.Group.Contains(q, StringComparison.OrdinalIgnoreCase);
-            }).ToList();
+            var pool = SectionChannels
+                .Where(c => _selectedCategory == "Todas" || c.Group == _selectedCategory)
+                .ToList();
+            return FuzzySearchService.FilterChannels(pool, _searchQuery);
+        }
+    }
+
+    private IReadOnlyList<Channel> FilteredChannels => FilteredChannelsResult.Items;
+
+    private List<string> MultiCategories
+    {
+        get
+        {
+            var groups = Library.Channels
+                .Where(c => !string.IsNullOrWhiteSpace(c.Url))
+                .Select(c => string.IsNullOrWhiteSpace(c.Group) ? "Geral" : c.Group)
+                .Distinct()
+                .OrderBy(g => g)
+                .ToList();
+            return ["Todas", .. groups];
+        }
+    }
+
+    private FuzzySearchResult MultiFilteredResult
+    {
+        get
+        {
+            var pool = Library.Channels
+                .Where(c => !string.IsNullOrWhiteSpace(c.Url) &&
+                            (_multiCategory == "Todas" ||
+                             (string.IsNullOrWhiteSpace(c.Group) ? "Geral" : c.Group) == _multiCategory))
+                .ToList();
+            return FuzzySearchService.FilterChannels(pool, _multiSearch);
+        }
+    }
+
+    private void OnPlayerStageClick()
+    {
+        if (_hidePlayerControls)
+        {
+            _hidePlayerControls = false;
         }
     }
 
@@ -766,15 +812,6 @@
         _modalOpen = false;
         await LoadDemoAsync();
     }
-
-    private List<Channel> MultiPlayableChannels =>
-        Library.Channels
-            .Where(c => !string.IsNullOrWhiteSpace(c.Url))
-            .Where(c => string.IsNullOrWhiteSpace(_multiSearch) ||
-                        c.Name.Contains(_multiSearch.Trim(), StringComparison.OrdinalIgnoreCase) ||
-                        c.Group.Contains(_multiSearch.Trim(), StringComparison.OrdinalIgnoreCase))
-            .Take(150)
-            .ToList();
 
     private void CyclePlayerSize() => _playerSizeMode = _playerSizeMode switch
     {
@@ -823,6 +860,7 @@
         }
 
         _multiOpen = true;
+        _multiCategory = "Todas";
         StateHasChanged();
         await Task.Yield();
 

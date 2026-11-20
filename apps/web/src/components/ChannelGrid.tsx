@@ -8,6 +8,7 @@ interface ChannelGridProps {
   epg: EpgMap;
   favoriteSet: Set<string>;
   searchQuery: string;
+  searchSuggestion?: string | null;
   onSearchChange: (q: string) => void;
   onPlayChannel: (channel: Channel) => void;
   onToggleFavorite: (channelId: string) => void;
@@ -23,6 +24,7 @@ export function ChannelGrid({
   epg,
   favoriteSet,
   searchQuery,
+  searchSuggestion,
   onSearchChange,
   onPlayChannel,
   onToggleFavorite,
@@ -63,6 +65,12 @@ export function ChannelGrid({
           </div>
         </div>
       </div>
+
+      {searchSuggestion && (
+        <div className="fuzzy-hint">
+          Mostrando resultados aproximados para: <strong>{searchSuggestion}</strong>
+        </div>
+      )}
 
       {channels.length === 0 ? (
         <div className="empty-filter">

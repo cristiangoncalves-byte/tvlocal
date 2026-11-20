@@ -32,6 +32,8 @@ public partial class MultiStreamWindow : Window
             tile.Initialize(i + 1, _libVlc, startMuted: i > 0);
             tile.SlotSelected += OnTileSelected;
             tile.SoloRequested += OnTileSoloRequested;
+            tile.SurfaceClicked += OnTileSurfaceClicked;
+            tile.FullscreenToggleRequested += ToggleFullscreen;
             _tiles.Add(tile);
         }
 
@@ -177,6 +179,14 @@ public partial class MultiStreamWindow : Window
         }
     }
 
+    private void OnTileSurfaceClicked(MultiStreamTile tile)
+    {
+        if (!_isFullscreen) return;
+        TopToolbar.Visibility = TopToolbar.Visibility == Visibility.Visible
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+    }
+
     private void LoadPickerFilters()
     {
         var playable = _library.Channels.Where(c => !string.IsNullOrWhiteSpace(c.Url)).ToList();
@@ -192,16 +202,22 @@ public partial class MultiStreamWindow : Window
         var selectedCat = CategoryCombo.SelectedItem as string ?? "Todas";
         var q = SearchBox.Text.Trim();
 
-        var items = _library.Channels.Where(c =>
-        {
-            if (string.IsNullOrWhiteSpace(c.Url)) return false;
-            if (selectedCat != "Todas" && c.Group != selectedCat) return false;
-            if (string.IsNullOrEmpty(q)) return true;
-            return c.Name.Contains(q, StringComparison.OrdinalIgnoreCase)
-                || c.Group.Contains(q, StringComparison.OrdinalIgnoreCase);
-        }).Take(350).ToList();
+        var pool = _library.Channels
+            .Where(c => !string.IsNullOrWhiteSpace(c.Url) && (selectedCat == "Todas" || c.Group == selectedCat))
+            .ToList();
 
-        PickerChannelsList.ItemsSource = items;
+        var fuzzy = FuzzySearchService.FilterChannels(pool, q);
+        PickerChannelsList.ItemsSource = fuzzy.Items.Take(350).ToList();
+
+        if (!string.IsNullOrEmpty(fuzzy.CorrectedQuery))
+        {
+            PickerSuggestionText.Text = $"Resultados aproximados para: \"{fuzzy.CorrectedQuery}\"";
+            PickerSuggestionText.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            PickerSuggestionText.Visibility = Visibility.Collapsed;
+        }
     }
 
     private void OnFilterChanged(object sender, SelectionChangedEventArgs e) => RefreshPickerList();

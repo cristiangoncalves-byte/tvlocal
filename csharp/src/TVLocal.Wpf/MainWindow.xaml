@@ -124,27 +124,6 @@
                     <Button x:Name="NavRecentBtn" Content="⏱  Recentes" Style="{StaticResource NavButton}" Tag="Recents" Click="OnNavClick"/>
                 </StackPanel>
 
-                <!-- Connected Sources -->
-                <StackPanel x:Name="SourcesBlock" DockPanel.Dock="Bottom" Margin="0,12,0,0">
-                    <TextBlock Text="LISTAS CONECTADAS" FontSize="11" Foreground="#64748B" Margin="4,0,0,8"/>
-                    <ItemsControl x:Name="SourcesList">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="{DynamicResource CardBrush}" CornerRadius="9" Padding="11,9" Margin="0,0,0,6">
-                                    <DockPanel>
-                                        <Button DockPanel.Dock="Right" Content="✕" Padding="7,3" FontSize="11"
-                                                Tag="{Binding Id}" Click="OnRemoveSourceClick"/>
-                                        <StackPanel Margin="0,0,8,0">
-                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12.5" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding ChannelCount, StringFormat='{}{0} itens'}" FontSize="11" Foreground="#94A3B8"/>
-                                        </StackPanel>
-                                    </DockPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-
                 <!-- Categories -->
                 <DockPanel x:Name="CategoriesBlock">
                     <TextBlock DockPanel.Dock="Top" Text="CATEGORIAS" FontSize="11" Foreground="#64748B" Margin="4,0,0,8"/>
@@ -264,7 +243,7 @@
                             <RowDefinition x:Name="PlayerControlsRow" Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <Border x:Name="VideoHostBorder" Grid.Row="0" Background="#05080F">
+                        <Border x:Name="VideoHostBorder" Grid.Row="0" Background="#05080F" MouseLeftButtonDown="OnVideoSurfaceMouseDown">
                             <Grid Background="#05080F">
                                 <!-- Overlay escuro quando nenhum canal está ativo -->
                                 <Border x:Name="IdleOverlay" Background="#05080F" Padding="24">
@@ -279,7 +258,9 @@
                                 </Border>
 
                                 <!-- VideoView começa Collapsed para evitar fundo branco nativo do HwndHost antes do playback -->
-                                <vlc:VideoView x:Name="PlayerView" Background="Black" Visibility="Collapsed"/>
+                                <vlc:VideoView x:Name="PlayerView" Background="Black" Visibility="Collapsed">
+                                    <Border Background="#01000000" MouseLeftButtonDown="OnVideoSurfaceMouseDown"/>
+                                </vlc:VideoView>
 
                                 <!-- Overlay quando em PiP ou Janela Própria -->
                                 <Border x:Name="DetachedOverlay" Visibility="Collapsed" Background="#0F1624" Padding="24">

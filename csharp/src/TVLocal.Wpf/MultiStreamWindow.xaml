@@ -58,7 +58,9 @@
                                   IsChecked="True" Foreground="#94A3B8" FontSize="12" Margin="0,0,0,8"/>
 
                         <ComboBox x:Name="CategoryCombo" Margin="0,0,0,8" SelectionChanged="OnFilterChanged"/>
-                        <TextBox x:Name="SearchBox" Tag="Buscar canal ou filme..." TextChanged="OnSearchChanged"/>
+                        <TextBox x:Name="SearchBox" Tag="Buscar canal, filme, série ou categoria..." TextChanged="OnSearchChanged"/>
+                        <TextBlock x:Name="PickerSuggestionText" Visibility="Collapsed" FontSize="11.5" Foreground="#93C5FD"
+                                   Margin="0,6,0,0" TextWrapping="Wrap"/>
                     </StackPanel>
 
                     <ScrollViewer VerticalScrollBarVisibility="Auto">

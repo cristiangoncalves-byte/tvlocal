@@ -4,14 +4,11 @@ import {
   Film,
   Layers,
   Plus,
-  RefreshCw,
   Settings,
   Star,
-  Trash2,
   Tv,
   Clapperboard,
 } from 'lucide-react';
-import type { PlaylistSource } from '@tv-local/core';
 import type { NavSection } from '../hooks/useIptvStore';
 
 interface SidebarProps {
@@ -20,13 +17,9 @@ interface SidebarProps {
   categories: Array<{ name: string; count: number }>;
   selectedCategory: string;
   onSelectCategory: (cat: string) => void;
-  sources: PlaylistSource[];
   onOpenAddModal: () => void;
   onOpenMultiStream: () => void;
   onOpenSettings: () => void;
-  onRefreshSource: (source: PlaylistSource) => void;
-  onRemoveSource: (sourceId: string) => void;
-  isLoading: boolean;
 }
 
 const NAV_ITEMS: Array<{ id: NavSection; label: string; icon: typeof Tv }> = [
@@ -43,13 +36,9 @@ export function Sidebar({
   categories,
   selectedCategory,
   onSelectCategory,
-  sources,
   onOpenAddModal,
   onOpenMultiStream,
   onOpenSettings,
-  onRefreshSource,
-  onRemoveSource,
-  isLoading,
 }: SidebarProps) {
   return (
     <aside className="sidebar">
@@ -106,39 +95,6 @@ export function Sidebar({
             </button>
           ))}
         </div>
-
-        {sources.length > 0 && (
-          <div className="sources-block">
-            <div className="section-label">Listas Conectadas</div>
-            {sources.map((src) => (
-              <div key={src.id} className="source-item">
-                <div className="source-info">
-                  <strong className="truncate">{src.name}</strong>
-                  <span>{src.channelCount} itens</span>
-                </div>
-                <div className="source-actions">
-                  <button
-                    type="button"
-                    className="icon-btn-sm"
-                    title="Atualizar lista"
-                    disabled={isLoading}
-                    onClick={() => onRefreshSource(src)}
-                  >
-                    <RefreshCw size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-btn-sm danger"
-                    title="Remover lista"
-                    onClick={() => onRemoveSource(src.id)}
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </aside>
   );

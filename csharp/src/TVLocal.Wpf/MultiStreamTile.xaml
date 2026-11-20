@@ -49,7 +49,9 @@
                                    FontSize="11.5" Foreground="#64748B" TextWrapping="Wrap" TextAlignment="Center"/>
                     </StackPanel>
                 </Border>
-                <vlc:VideoView x:Name="TileVideoView" Background="Black" Visibility="Collapsed"/>
+                <vlc:VideoView x:Name="TileVideoView" Background="Black" Visibility="Collapsed">
+                    <Border Background="#01000000" MouseLeftButtonDown="OnTileSurfaceMouseDown"/>
+                </vlc:VideoView>
             </Grid>
 
             <!-- Barra de Áudio Individual -->

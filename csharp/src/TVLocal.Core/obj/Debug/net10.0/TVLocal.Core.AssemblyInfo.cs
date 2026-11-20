@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TVLocal.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+70ebfa862696345296b7626ba32dc48a8d0b1809")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+16b0539c24d8de4edd7796d2cc800148b0a9f265")]
 [assembly: System.Reflection.AssemblyProductAttribute("TVLocal.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TVLocal.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

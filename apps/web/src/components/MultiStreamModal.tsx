@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import {
+  EyeOff,
   Headphones,
   Maximize,
   Minimize2,
@@ -13,7 +14,7 @@ import {
   VolumeX,
   X,
 } from 'lucide-react';
-import type { Channel } from '@tv-local/core';
+import { fuzzyFilterChannels, type Channel } from '@tv-local/core';
 import { hasLocalProxy, isDesktopApp, toProxiedUrl } from '../utils/network';
 
 export interface WebDualStreamCloseResult {
@@ -286,7 +287,9 @@ export function MultiStreamModal({
 
   const [layout, setLayout] = useState<'2x1' | '2x2'>('2x1');
   const [showPicker, setShowPicker] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [search, setSearch] = useState('');
+  const [fsControlsVisible, setFsControlsVisible] = useState(true);
   const [targetSlot, setTargetSlot] = useState<number>(initialChannel ? 1 : 0);
   const [slotInitialSeek, setSlotInitialSeek] = useState<number[]>([
     initialChannel && initialChannel.kind !== 'live' && initialPosition > 0 ? initialPosition : 0,
@@ -316,17 +319,41 @@ export function MultiStreamModal({
       0,
     ]);
     setTargetSlot(initialChannel ? 1 : 0);
+    setSelectedCategory('Todas');
+    setFsControlsVisible(true);
   }, [isOpen, initialChannel, initialPosition]);
 
   const visibleCount = layout === '2x1' ? 2 : 4;
 
-  const playable = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return channels
-      .filter((c) => Boolean(c.url))
-      .filter((c) => !q || c.name.toLowerCase().includes(q) || c.group.toLowerCase().includes(q))
-      .slice(0, 150);
-  }, [channels, search]);
+  const allPlayable = useMemo(
+    () => channels.filter((c) => Boolean(c.url)),
+    [channels],
+  );
+
+  const categories = useMemo(() => {
+    const groups = Array.from(new Set(allPlayable.map((c) => c.group || 'Geral'))).sort((a, b) =>
+      a.localeCompare(b),
+    );
+    return ['Todas', ...groups];
+  }, [allPlayable]);
+
+  useEffect(() => {
+    if (!categories.includes(selectedCategory)) {
+      setSelectedCategory('Todas');
+    }
+  }, [categories, selectedCategory]);
+
+  const { playable, correctedQuery } = useMemo(() => {
+    const byCategory =
+      selectedCategory === 'Todas'
+        ? allPlayable
+        : allPlayable.filter((c) => (c.group || 'Geral') === selectedCategory);
+    const res = fuzzyFilterChannels(byCategory, search);
+    return {
+      playable: res.items.slice(0, 150),
+      correctedQuery: res.correctedQuery,
+    };
+  }, [allPlayable, selectedCategory, search]);
 
   const handleClose = () => {
     const firstOccupiedIdx = slots.findIndex((s) => Boolean(s.channel?.url));
@@ -368,7 +395,17 @@ export function MultiStreamModal({
 
   return (
     <div className="modal-backdrop">
-      <div ref={containerRef} className="multi-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={containerRef}
+        className={`multi-modal ${!fsControlsVisible ? 'multi-controls-hidden' : ''}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!fsControlsVisible) {
+            setFsControlsVisible(true);
+          }
+        }}
+      >
+        {fsControlsVisible && (
         <div className="multi-header">
           <div className="multi-title-group">
             <strong>Multi-Tela</strong>
@@ -405,6 +442,14 @@ export function MultiStreamModal({
             <button
               type="button"
               className="btn btn-secondary btn-sm"
+              title="Ocultar barra (clique na tela para exibir novamente)"
+              onClick={() => setFsControlsVisible(false)}
+            >
+              <EyeOff size={14} />
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
               title="Tela cheia"
               onClick={toggleFullscreen}
             >
@@ -415,8 +460,9 @@ export function MultiStreamModal({
             </button>
           </div>
         </div>
+        )}
 
-        <div className={`multi-body ${showPicker ? 'with-picker' : ''}`}>
+        <div className={`multi-body ${showPicker && fsControlsVisible ? 'with-picker' : ''}`}>
           <div className={`multi-grid ${layout === '2x2' ? 'grid-2x2' : 'grid-2x1'}`}>
             {slots.slice(0, visibleCount).map((slot, idx) => (
               <MultiSlotTile
@@ -428,7 +474,10 @@ export function MultiStreamModal({
                 videoRef={(el) => {
                   videoRefs.current[idx] = el;
                 }}
-                onSelect={() => setTargetSlot(idx)}
+                onSelect={() => {
+                  setTargetSlot(idx);
+                  if (!fsControlsVisible) setFsControlsVisible(true);
+                }}
                 onTogglePlay={() => {
                   const vid = videoRefs.current[idx];
                   if (!vid) return;
@@ -463,11 +512,23 @@ export function MultiStreamModal({
             ))}
           </div>
 
-          {showPicker && (
+          {showPicker && fsControlsVisible && (
             <aside className="multi-picker">
               <div className="multi-picker-head">
                 <span>Enviando para: <strong>Tela {targetSlot + 1}</strong></span>
               </div>
+              <select
+                className="multi-cat-select"
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                aria-label="Filtrar categoria no Multi-Tela"
+              >
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat === 'Todas' ? 'Todas as categorias' : cat}
+                  </option>
+                ))}
+              </select>
               <div className="search-box">
                 <Search size={15} />
                 <input
@@ -477,6 +538,11 @@ export function MultiStreamModal({
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
+              {correctedQuery && (
+                <div className="fuzzy-hint">
+                  Aproximado para: <strong>{correctedQuery}</strong>
+                </div>
+              )}
               <div className="multi-picker-list">
                 {playable.map((ch) => (
                   <button

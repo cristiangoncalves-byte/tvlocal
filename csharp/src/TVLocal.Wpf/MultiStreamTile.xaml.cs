@@ -31,6 +31,8 @@ public partial class MultiStreamTile : UserControl
 
     public event Action<MultiStreamTile>? SlotSelected;
     public event Action<MultiStreamTile>? SoloRequested;
+    public event Action<MultiStreamTile>? SurfaceClicked;
+    public event Action? FullscreenToggleRequested;
 
     public MultiStreamTile()
     {
@@ -144,7 +146,23 @@ public partial class MultiStreamTile : UserControl
     }
 
     private void OnTileClicked(object sender, MouseButtonEventArgs e) => SlotSelected?.Invoke(this);
-    private void OnEmptyOverlayClick(object sender, MouseButtonEventArgs e) => SlotSelected?.Invoke(this);
+    private void OnEmptyOverlayClick(object sender, MouseButtonEventArgs e)
+    {
+        SlotSelected?.Invoke(this);
+        SurfaceClicked?.Invoke(this);
+    }
+    private void OnTileSurfaceMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        SlotSelected?.Invoke(this);
+        if (e.ClickCount == 2)
+        {
+            FullscreenToggleRequested?.Invoke();
+            e.Handled = true;
+            return;
+        }
+        SurfaceClicked?.Invoke(this);
+        e.Handled = true;
+    }
     private void OnSelectSlotClick(object sender, RoutedEventArgs e) => SlotSelected?.Invoke(this);
 
     private void OnMuteClick(object sender, RoutedEventArgs e)

@@ -84,6 +84,14 @@ html, body, .blazor-root {
   border: 1px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.player-video-wrap {
+  position: relative;
+  width: 100%;
+  background: #000;
 }
 
 .player-video {
@@ -92,6 +100,48 @@ html, body, .blazor-root {
   max-height: 440px;
   background: #000;
   display: block;
+}
+
+.player-fs-reveal-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.player-shell.fs-controls-hidden .player-bar {
+  display: none;
+}
+
+.player-shell:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  border: 0;
+  background: #000;
+}
+
+.player-shell:fullscreen .player-video-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.player-shell:fullscreen .player-video {
+  max-height: none;
+  aspect-ratio: auto;
+  height: 100%;
+}
+
+.fuzzy-hint {
+  font-size: 12px;
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.14);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 8px;
+  padding: 6px 10px;
 }
 
 .player-bar {
@@ -206,7 +256,8 @@ html, body, .blazor-root {
 .app-shell.expanded-player .stage-grid { flex: 1; min-height: 0; }
 .player-shell.size-large .player-video { max-height: 68vh; }
 .player-shell.size-expanded { height: 100%; display: flex; flex-direction: column; }
-.player-shell.size-expanded .player-video { flex: 1; max-height: none; aspect-ratio: auto; min-height: 0; }
+.player-shell.size-expanded .player-video-wrap { flex: 1; min-height: 0; display: flex; }
+.player-shell.size-expanded .player-video { flex: 1; max-height: none; aspect-ratio: auto; min-height: 0; height: 100%; }
 
 .multi-modal {
   width: min(1260px, 96vw); height: min(850px, 92vh);

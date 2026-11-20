@@ -8,6 +8,7 @@ import {
   normalizeXtreamServerUrl,
   buildXtreamXmltvUrl,
   createDemoPlaylist,
+  fuzzyFilterChannels,
 } from '../src/index.ts';
 
 describe('@tv-local/core M3U parser', () => {
@@ -114,5 +115,66 @@ describe('@tv-local/core Xtream & Demo helpers', () => {
     assert.ok(demo.channels.length >= 3);
     assert.equal(demo.source.type, 'demo');
     assert.ok(demo.epg['demo.bbb']?.length);
+  });
+});
+
+describe('@tv-local/core fuzzySearch', () => {
+  const sample = [
+    {
+      id: '1',
+      name: 'Aventura Espacial HD',
+      url: 'https://example.com/1.mp4',
+      group: 'Filmes',
+      kind: 'vod' as const,
+      sourceId: 's1',
+    },
+    {
+      id: '2',
+      name: 'Canal Arena Live',
+      url: 'https://example.com/2.m3u8',
+      group: 'Esportes',
+      kind: 'live' as const,
+      sourceId: 's1',
+    },
+    {
+      id: '3',
+      name: 'Jornal Central',
+      url: 'https://example.com/3.m3u8',
+      group: 'Notícias',
+      kind: 'live' as const,
+      sourceId: 's1',
+    },
+    {
+      id: '4',
+      name: 'Série Ação Extrema',
+      url: 'https://example.com/4.mp4',
+      group: 'Séries',
+      kind: 'series' as const,
+      sourceId: 's1',
+    },
+  ];
+
+  it('auto-corrects misspelled channel/movie titles', () => {
+    const res1 = fuzzyFilterChannels(sample, 'aventra espcial');
+    assert.equal(res1.items.length, 1);
+    assert.equal(res1.items[0].id, '1');
+    assert.ok(res1.correctedQuery?.toLowerCase().includes('aventura'));
+
+    const res2 = fuzzyFilterChannels(sample, 'jornl central');
+    assert.equal(res2.items.length, 1);
+    assert.equal(res2.items[0].id, '3');
+    assert.ok(res2.correctedQuery?.toLowerCase().includes('jornal'));
+  });
+
+  it('matches misspelled categories and ignores accents', () => {
+    const resCat = fuzzyFilterChannels(sample, 'esprote');
+    assert.equal(resCat.items.length, 1);
+    assert.equal(resCat.items[0].id, '2');
+    assert.equal(resCat.correctedQuery, 'Esportes');
+
+    const resAccent = fuzzyFilterChannels(sample, 'acao');
+    assert.equal(resAccent.items.length, 1);
+    assert.equal(resAccent.items[0].id, '4');
+    assert.equal(resAccent.correctedQuery, null);
   });
 });

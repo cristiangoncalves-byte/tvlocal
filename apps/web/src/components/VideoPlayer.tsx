@@ -11,6 +11,7 @@ import {
   ChevronUp,
   Columns2,
   Expand,
+  EyeOff,
   Maximize,
   Minimize2,
   Pause,
@@ -121,6 +122,8 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(funct
   const [isBuffering, setIsBuffering] = useState(false);
   const [qualities, setQualities] = useState<QualityOption[]>([]);
   const [selectedQuality, setSelectedQuality] = useState<number>(-1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fsControlsVisible, setFsControlsVisible] = useState(true);
 
   useEffect(() => {
     externalPausedRef.current = externalPaused;
@@ -165,6 +168,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(funct
     setSelectedQuality(-1);
     setSpeedIndex(0);
     setUseProxy(isDesktopApp());
+    setFsControlsVisible(true);
     if (videoRef.current) {
       videoRef.current.playbackRate = 1.0;
     }
@@ -274,6 +278,9 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(funct
 
   useEffect(() => {
     const onFsChange = () => {
+      const fsActive = document.fullscreenElement === containerRef.current;
+      setIsFullscreen(fsActive);
+      setFsControlsVisible(true);
       if (!document.fullscreenElement) {
         unlockOrientationIfSupported();
       }
@@ -384,15 +391,29 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(funct
         ? 'Expandir (Teatro)'
         : 'Reduzir Tela';
 
+  const handleStageClick = () => {
+    if (!fsControlsVisible) {
+      setFsControlsVisible(true);
+      return;
+    }
+    if (isFullscreen && channel.kind === 'live') {
+      setFsControlsVisible(false);
+    }
+  };
+
   return (
-    <div className={`player-shell size-${playerSizeMode}`} ref={containerRef}>
-      <div className="player-stage">
+    <div
+      className={`player-shell size-${playerSizeMode}${!fsControlsVisible ? ' fs-controls-hidden' : ''}`}
+      ref={containerRef}
+    >
+      <div className="player-stage" onClick={handleStageClick}>
         <video
           ref={videoRef}
           className="player-video"
           style={{ objectFit: videoContentFit }}
           playsInline
           controls={channel.kind !== 'live'}
+          onDoubleClick={toggleFullscreen}
           onPlay={() => {
             setIsPlaying(true);
             setIsBuffering(false);
@@ -409,6 +430,18 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(funct
             }
           }}
         />
+
+        {!fsControlsVisible && (
+          <button
+            type="button"
+            className="player-fs-reveal-overlay"
+            aria-label="Mostrar controles"
+            onClick={(e) => {
+              e.stopPropagation();
+              setFsControlsVisible(true);
+            }}
+          />
+        )}
 
         {isBuffering && !errorMsg && (
           <div className="player-overlay-status">
@@ -597,6 +630,17 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(funct
             <Shrink size={15} />
             {videoContentFit === 'cover' ? 'Ajustar' : 'Preencher'}
           </button>
+
+          {(isFullscreen || playerSizeMode === 'expanded') && (
+            <button
+              type="button"
+              className="icon-btn"
+              title="Ocultar controles (clique na tela para exibir)"
+              onClick={() => setFsControlsVisible(false)}
+            >
+              <EyeOff size={18} />
+            </button>
+          )}
 
           <button type="button" className="icon-btn" title="Picture-in-Picture" onClick={togglePiP}>
             <PictureInPicture2 size={18} />

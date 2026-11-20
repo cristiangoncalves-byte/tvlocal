@@ -257,7 +257,6 @@ public partial class MainWindow : Window
                 BrandTextPanel.Visibility = Visibility.Visible;
                 NavHeaderLabel.Visibility = Visibility.Visible;
                 CategoriesBlock.Visibility = Visibility.Visible;
-                SourcesBlock.Visibility = _library.Sources.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
                 MenuModeBtn.Content = "☰ Menu: Completo";
                 break;
             case SidebarMode.Compact:
@@ -266,7 +265,6 @@ public partial class MainWindow : Window
                 BrandTextPanel.Visibility = Visibility.Collapsed;
                 NavHeaderLabel.Visibility = Visibility.Collapsed;
                 CategoriesBlock.Visibility = Visibility.Collapsed;
-                SourcesBlock.Visibility = Visibility.Collapsed;
                 MenuModeBtn.Content = "☰ Menu: Reduzido";
                 break;
             case SidebarMode.Hidden:
@@ -334,8 +332,6 @@ public partial class MainWindow : Window
         UpdateNavHighlight();
         ApplyLayoutState();
 
-        SourcesList.ItemsSource = _library.Sources.ToList();
-
         IEnumerable<Channel> sectionItems = _section switch
         {
             "Vod" => _library.Channels.Where(c => c.Kind == StreamKind.Vod),
@@ -373,13 +369,11 @@ public partial class MainWindow : Window
         CategoriesList.ItemsSource = catRows;
 
         var query = SearchBox.Text.Trim();
-        _filteredChannels = sectionList.Where(c =>
-        {
-            if (_selectedCategory != "Todas" && c.Group != _selectedCategory) return false;
-            if (string.IsNullOrEmpty(query)) return true;
-            return c.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
-                || c.Group.Contains(query, StringComparison.OrdinalIgnoreCase);
-        }).ToList();
+        var categoryPool = _selectedCategory == "Todas"
+            ? sectionList
+            : sectionList.Where(c => c.Group == _selectedCategory).ToList();
+        var fuzzy = FuzzySearchService.FilterChannels(categoryPool, query);
+        _filteredChannels = fuzzy.Items.ToList();
 
         if (_section is "Vod" or "Series")
         {
@@ -422,7 +416,9 @@ public partial class MainWindow : Window
         ClearRecentsBtn.Visibility = _section == "Recents" && _filteredChannels.Count > 0
             ? Visibility.Visible
             : Visibility.Collapsed;
-        ItemsCountText.Text = $"{_filteredChannels.Count} itens";
+        ItemsCountText.Text = !string.IsNullOrEmpty(fuzzy.CorrectedQuery)
+            ? $"{_filteredChannels.Count} itens • Aproximado para \"{fuzzy.CorrectedQuery}\""
+            : $"{_filteredChannels.Count} itens";
         UpdateActiveChannelUi();
     }
 
@@ -1138,20 +1134,6 @@ public partial class MainWindow : Window
         RefreshView();
     }
 
-    private async void OnRemoveSourceClick(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn && btn.Tag is string sourceId)
-        {
-            await _library.RemoveSourceAsync(sourceId);
-            if (_activeChannel?.SourceId == sourceId)
-            {
-                _mediaPlayer?.Stop();
-                _activeChannel = null;
-            }
-            RefreshView();
-        }
-    }
-
     private async void OnToggleChannelFavorite(object sender, RoutedEventArgs e)
     {
         e.Handled = true;
@@ -1420,6 +1402,22 @@ public partial class MainWindow : Window
     }
 
     private void OnToggleFullscreen(object sender, RoutedEventArgs e) => ToggleFullscreen();
+
+    private void OnVideoSurfaceMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2)
+        {
+            ToggleFullscreen();
+            e.Handled = true;
+            return;
+        }
+        if (_isFullscreen)
+        {
+            _hideControlsInFullscreen = !_hideControlsInFullscreen;
+            ApplyLayoutState();
+            e.Handled = true;
+        }
+    }
 
     private void OnHideFullscreenControls(object sender, RoutedEventArgs e)
     {

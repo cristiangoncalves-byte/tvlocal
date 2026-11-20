@@ -35,7 +35,9 @@
         </Border>
 
         <!-- Vídeo -->
-        <vlc:VideoView x:Name="DetachedVideoView" Grid.Row="1" Background="Black"/>
+        <vlc:VideoView x:Name="DetachedVideoView" Grid.Row="1" Background="Black">
+            <Border Background="#01000000" MouseLeftButtonDown="OnVideoSurfaceMouseDown"/>
+        </vlc:VideoView>
 
         <!-- Barra Inferior de Controles & Linha do Tempo -->
         <Border x:Name="BottomBar" Grid.Row="2" Background="{DynamicResource ElevatedBrush}"

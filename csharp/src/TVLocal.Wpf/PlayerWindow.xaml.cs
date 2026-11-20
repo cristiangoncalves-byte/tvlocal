@@ -145,9 +145,27 @@ public partial class PlayerWindow : Window
 
     private void OnToggleFullscreen(object sender, RoutedEventArgs e) => ToggleFullscreen();
 
+    private void OnVideoSurfaceMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2)
+        {
+            ToggleFullscreen();
+            e.Handled = true;
+            return;
+        }
+        _controlsHidden = !_controlsHidden;
+        var vis = _controlsHidden ? Visibility.Collapsed : Visibility.Visible;
+        TopBar.Visibility = vis;
+        BottomBar.Visibility = vis;
+        e.Handled = true;
+    }
+
     private void ToggleFullscreen()
     {
         _isFullscreen = !_isFullscreen;
+        _controlsHidden = false;
+        TopBar.Visibility = Visibility.Visible;
+        BottomBar.Visibility = Visibility.Visible;
         if (_isFullscreen)
         {
             WindowStyle = WindowStyle.None;

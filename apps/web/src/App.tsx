@@ -96,13 +96,9 @@ export function App() {
           categories={store.categories}
           selectedCategory={store.selectedCategory}
           onSelectCategory={store.setSelectedCategory}
-          sources={store.sources}
           onOpenAddModal={() => openModal('m3u_url')}
           onOpenMultiStream={handleOpenMultiStream}
           onOpenSettings={() => setSettingsOpen(true)}
-          onRefreshSource={store.refreshSource}
-          onRemoveSource={store.removeSource}
-          isLoading={store.isLoading}
         />
       )}
 
@@ -171,6 +167,7 @@ export function App() {
                 epg={store.epg}
                 favoriteSet={store.favoriteSet}
                 searchQuery={store.searchQuery}
+                searchSuggestion={store.searchSuggestion}
                 onSearchChange={store.setSearchQuery}
                 onPlayChannel={store.playChannel}
                 onToggleFavorite={store.toggleFavorite}

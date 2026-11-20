@@ -87,6 +87,6 @@ C:\Meus Projetos\TV Local\csharp\src\TVLocal.Blazor\obj\Debug\net10.0\refint\TVL
 C:\Meus Projetos\TV Local\csharp\src\TVLocal.Blazor\obj\Debug\net10.0\TVLocal.Blazor.pdb
 C:\Meus Projetos\TV Local\csharp\src\TVLocal.Blazor\obj\Debug\net10.0\TVLocal.Blazor.genruntimeconfig.cache
 C:\Meus Projetos\TV Local\csharp\src\TVLocal.Blazor\obj\Debug\net10.0\ref\TVLocal.Blazor.dll
-c:\Meus Projetos\TV Local\csharp\src\TVLocal.Blazor\obj\Debug\net10.0\compressed\616crlc370-{0}-g8auxrgiau-g8auxrgiau.gz
 c:\Meus Projetos\TV Local\csharp\src\TVLocal.Blazor\obj\Debug\net10.0\compressed\42z6orrhf1-{0}-wnk96xmjxx-wnk96xmjxx.gz
 c:\Meus Projetos\TV Local\csharp\src\TVLocal.Blazor\obj\Debug\net10.0\TVLocal.Blazor.sourcelink.json
+c:\Meus Projetos\TV Local\csharp\src\TVLocal.Blazor\obj\Debug\net10.0\compressed\616crlc370-{0}-91veptzwok-91veptzwok.gz

@@ -4,6 +4,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StatusBar as RNStatusBar,
   StyleSheet,
   Text,
@@ -12,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import type { AppThemeSettings, Channel } from '@tv-local/core';
+import { fuzzyFilterChannels, type AppThemeSettings, type Channel } from '@tv-local/core';
 
 export interface DualStreamCloseResult {
   channel: Channel | null;
@@ -51,6 +52,8 @@ export function DualStreamModal({
   const [playing2, setPlaying2] = useState(false);
   const [activeTargetSlot, setActiveTargetSlot] = useState<1 | 2>(initialChannel ? 2 : 1);
   const [showPicker, setShowPicker] = useState(true);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [search, setSearch] = useState('');
 
   const muted1Ref = useRef(muted1);
@@ -103,6 +106,9 @@ export function DualStreamModal({
     if (!visible) {
       p1.pause();
       p2.pause();
+    } else {
+      closingRef.current = false;
+      setControlsVisible(true);
     }
   }, [visible, p1, p2]);
 
@@ -151,13 +157,35 @@ export function DualStreamModal({
     };
   }, [visible, slot2?.url, p2]);
 
-  const playable = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return channels
-      .filter((c) => Boolean(c.url))
-      .filter((c) => !q || c.name.toLowerCase().includes(q) || c.group.toLowerCase().includes(q))
-      .slice(0, 120);
-  }, [channels, search]);
+  const allPlayable = useMemo(
+    () => channels.filter((c) => Boolean(c.url)),
+    [channels],
+  );
+
+  const categories = useMemo(() => {
+    const groups = Array.from(new Set(allPlayable.map((c) => c.group || 'Geral'))).sort((a, b) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    );
+    return ['Todas', ...groups];
+  }, [allPlayable]);
+
+  useEffect(() => {
+    if (!categories.includes(selectedCategory)) {
+      setSelectedCategory('Todas');
+    }
+  }, [categories, selectedCategory]);
+
+  const { playable, correctedQuery } = useMemo(() => {
+    const byCategory =
+      selectedCategory === 'Todas'
+        ? allPlayable
+        : allPlayable.filter((c) => (c.group || 'Geral') === selectedCategory);
+    const res = fuzzyFilterChannels(byCategory, search);
+    return {
+      playable: res.items.slice(0, 120),
+      correctedQuery: res.correctedQuery,
+    };
+  }, [allPlayable, selectedCategory, search]);
 
   const handleClose = () => {
     if (closingRef.current) return;
@@ -190,7 +218,8 @@ export function DualStreamModal({
       supportedOrientations={['portrait', 'landscape', 'landscape-left', 'landscape-right']}
       onRequestClose={handleClose}
     >
-      <View style={[styles.container, { backgroundColor: theme.bg, paddingTop: topPad }]}>
+      <View style={[styles.container, { backgroundColor: theme.bg, paddingTop: controlsVisible ? topPad : 0, paddingHorizontal: controlsVisible ? 12 : 0 }]}>
+        {controlsVisible && (
         <View style={styles.header}>
           <Text style={styles.title} numberOfLines={1}>
             2 Telas
@@ -207,6 +236,14 @@ export function DualStreamModal({
                 {showPicker ? '⤢ Ampliar Telas' : '☰ Canais'}
               </Text>
             </Pressable>
+            {!showPicker && (
+              <Pressable
+                style={[styles.headerPill, { backgroundColor: theme.card }]}
+                onPress={() => setControlsVisible(false)}
+              >
+                <Text style={styles.headerPillText}>👁 Ocultar</Text>
+              </Pressable>
+            )}
             <Pressable
               style={[
                 styles.headerPill,
@@ -221,13 +258,14 @@ export function DualStreamModal({
             </Pressable>
           </View>
         </View>
+        )}
 
         <View
           style={[
             styles.slotsWrapper,
             isLandscape && styles.slotsWrapperLandscape,
-            !showPicker && { flex: 1 },
-            isLandscape && showPicker && landscapeSlotHeight ? { height: landscapeSlotHeight } : null,
+            (!showPicker || !controlsVisible) && { flex: 1 },
+            isLandscape && showPicker && controlsVisible && landscapeSlotHeight ? { height: landscapeSlotHeight } : null,
           ]}
         >
           {/* Slot 1 */}
@@ -235,13 +273,14 @@ export function DualStreamModal({
             style={[
               styles.slotBox,
               isLandscape && { flex: 1 },
-              !showPicker && { flex: 1 },
+              (!showPicker || !controlsVisible) && { flex: 1 },
               {
                 backgroundColor: theme.surface,
                 borderColor: activeTargetSlot === 1 ? theme.accent : '#1e293b',
               },
             ]}
           >
+            {controlsVisible && (
             <View style={styles.slotBar}>
               <Pressable style={{ flex: 1 }} onPress={() => setActiveTargetSlot(1)}>
                 <Text style={styles.slotTitle} numberOfLines={1}>
@@ -272,14 +311,29 @@ export function DualStreamModal({
                 <Text style={styles.audioText}>🎧 Solo</Text>
               </Pressable>
             </View>
-            <VideoView
+            )}
+            <View
               style={[
-                styles.video,
-                (!showPicker || isLandscape) && { flex: 1, height: undefined },
+                styles.videoWrap,
+                (!showPicker || isLandscape || !controlsVisible) && { flex: 1, height: undefined },
               ]}
-              player={p1}
-              nativeControls={false}
-            />
+            >
+              <VideoView
+                style={{ flex: 1 }}
+                player={p1}
+                nativeControls={controlsVisible}
+                controllerAutoShow
+              />
+              {!controlsVisible && (
+                <Pressable
+                  style={StyleSheet.absoluteFill}
+                  onPress={() => {
+                    setActiveTargetSlot(1);
+                    setControlsVisible(true);
+                  }}
+                />
+              )}
+            </View>
           </View>
 
           {/* Slot 2 */}
@@ -287,13 +341,14 @@ export function DualStreamModal({
             style={[
               styles.slotBox,
               isLandscape && { flex: 1 },
-              !showPicker && { flex: 1 },
+              (!showPicker || !controlsVisible) && { flex: 1 },
               {
                 backgroundColor: theme.surface,
                 borderColor: activeTargetSlot === 2 ? theme.accent : '#1e293b',
               },
             ]}
           >
+            {controlsVisible && (
             <View style={styles.slotBar}>
               <Pressable style={{ flex: 1 }} onPress={() => setActiveTargetSlot(2)}>
                 <Text style={styles.slotTitle} numberOfLines={1}>
@@ -324,29 +379,70 @@ export function DualStreamModal({
                 <Text style={styles.audioText}>🎧 Solo</Text>
               </Pressable>
             </View>
-            <VideoView
+            )}
+            <View
               style={[
-                styles.video,
-                (!showPicker || isLandscape) && { flex: 1, height: undefined },
+                styles.videoWrap,
+                (!showPicker || isLandscape || !controlsVisible) && { flex: 1, height: undefined },
               ]}
-              player={p2}
-              nativeControls={false}
-            />
+            >
+              <VideoView
+                style={{ flex: 1 }}
+                player={p2}
+                nativeControls={controlsVisible}
+                controllerAutoShow
+              />
+              {!controlsVisible && (
+                <Pressable
+                  style={StyleSheet.absoluteFill}
+                  onPress={() => {
+                    setActiveTargetSlot(2);
+                    setControlsVisible(true);
+                  }}
+                />
+              )}
+            </View>
           </View>
         </View>
 
-        {showPicker && (
+        {showPicker && controlsVisible && (
           <>
             <Text style={styles.targetHint}>
               Enviando próximo item escolhido para: Tela {activeTargetSlot}
             </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.catScroll}
+              contentContainerStyle={styles.catScrollContent}
+            >
+              {categories.map((cat) => (
+                <Pressable
+                  key={cat}
+                  style={[
+                    styles.catChip,
+                    { backgroundColor: selectedCategory === cat ? theme.accent : theme.surface },
+                  ]}
+                  onPress={() => setSelectedCategory(cat)}
+                >
+                  <Text style={[styles.catChipText, selectedCategory === cat && styles.catChipTextActive]}>
+                    {cat}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
             <TextInput
               style={[styles.searchInput, { backgroundColor: theme.surface }]}
-              placeholder="Buscar canal, filme ou série para tela selecionada..."
+              placeholder="Buscar canal, filme, série ou categoria..."
               placeholderTextColor="#64748b"
               value={search}
               onChangeText={setSearch}
             />
+            {correctedQuery && (
+              <Text style={styles.fuzzyHint}>
+                Resultados aproximados para: "{correctedQuery}"
+              </Text>
+            )}
 
             <FlatList
               data={playable}
@@ -405,8 +501,15 @@ const styles = StyleSheet.create({
   slotTitle: { color: '#f1f5f9', fontSize: 12, fontWeight: '700' },
   audioBtn: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 6 },
   audioText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  videoWrap: { width: '100%', height: 135, backgroundColor: '#000', position: 'relative' },
   video: { width: '100%', height: 135, backgroundColor: '#000' },
   targetHint: { color: '#93c5fd', fontSize: 12, fontWeight: '600' },
+  catScroll: { flexGrow: 0, flexShrink: 0 },
+  catScrollContent: { alignItems: 'center', gap: 6, paddingVertical: 2 },
+  catChip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999 },
+  catChipText: { color: '#94a3b8', fontSize: 12 },
+  catChipTextActive: { color: '#fff', fontWeight: '700' },
+  fuzzyHint: { color: '#93c5fd', fontSize: 11.5, fontWeight: '600' },
   searchInput: {
     color: '#f8fafc',
     borderRadius: 8,
