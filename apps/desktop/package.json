@@ -2,6 +2,8 @@
   "name": "@tv-local/desktop",
   "version": "1.0.0",
   "private": true,
+  "description": "TV Local IPTV Desktop Player",
+  "author": "Cristian Gonçalves",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "node scripts/dev.mjs",
@@ -13,6 +15,7 @@
   "build": {
     "appId": "com.tvlocal.iptv",
     "productName": "TV Local",
+    "electronVersion": "45.3.3",
     "publish": [
       {
         "provider": "github",
@@ -38,7 +41,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
-    "electron": "^45.3.3",
+    "electron": "45.3.3",
     "electron-builder": "^26.0.12",
     "typescript": "^5.8.2"
   },
