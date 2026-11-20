@@ -3,12 +3,29 @@
     "name": "TV Local",
     "slug": "tv-local",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/76cc84a8-e2cb-4ff4-bd1e-98db2106b49c",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "orientation": "default",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#080c14",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#080c14"
+    },
     "android": {
       "package": "com.tvlocal.iptv",
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#080c14"
       }
     },
@@ -16,6 +33,23 @@
       "bundleIdentifier": "com.tvlocal.iptv",
       "supportsTablet": true
     },
-    "plugins": ["expo-video", "expo-document-picker"]
+    "plugins": [
+      "expo-video",
+      "expo-document-picker",
+      "expo-screen-orientation",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "76cc84a8-e2cb-4ff4-bd1e-98db2106b49c"
+      }
+    }
   }
 }

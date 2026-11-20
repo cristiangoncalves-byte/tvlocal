@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
         Title="TV Local — Transmissão"
+        Icon="pack://application:,,,/Assets/tv-local.ico"
         Width="960" Height="580"
         MinWidth="340" MinHeight="210"
         Background="#000000"
@@ -17,8 +18,9 @@
         </Grid.RowDefinitions>
 
         <!-- Barra Superior (arrastável no modo PiP sem borda) -->
-        <Border x:Name="TopBar" Grid.Row="0" Background="#0F1624" BorderBrush="#1E293B" BorderThickness="0,0,0,1"
-                Padding="10,6" MouseLeftButtonDown="OnTopBarMouseDown">
+        <Border x:Name="TopBar" Grid.Row="0" Background="{DynamicResource ElevatedBrush}"
+                BorderBrush="{DynamicResource BorderBrushDark}" BorderThickness="0,0,0,1"
+                Padding="12,8" MouseLeftButtonDown="OnTopBarMouseDown">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                     <Button x:Name="TopmostBtn" Content="📌 Topo" FontSize="11.5" Padding="8,4" Margin="0,0,6,0" Click="OnToggleTopmost"/>
@@ -36,9 +38,10 @@
         <vlc:VideoView x:Name="DetachedVideoView" Grid.Row="1" Background="Black"/>
 
         <!-- Barra Inferior de Controles & Linha do Tempo -->
-        <Border x:Name="BottomBar" Grid.Row="2" Background="#0F1624" BorderBrush="#1E293B" BorderThickness="0,1,0,0" Padding="10,7">
+        <Border x:Name="BottomBar" Grid.Row="2" Background="{DynamicResource ElevatedBrush}"
+                BorderBrush="{DynamicResource BorderBrushDark}" BorderThickness="0,1,0,0" Padding="12,9">
             <StackPanel>
-                <Grid Margin="0,0,0,6">
+                <Grid Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>

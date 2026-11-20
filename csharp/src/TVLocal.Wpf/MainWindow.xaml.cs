@@ -50,14 +50,7 @@ public partial class MainWindow : Window
     }
 
     private static readonly Brush TransparentBrush = Brushes.Transparent;
-    private static readonly Brush ActiveNavBg = new SolidColorBrush(Color.FromArgb(46, 59, 130, 246));
-    private static readonly Brush ActiveTextBrush = new SolidColorBrush(Color.FromRgb(147, 197, 253));
     private static readonly Brush MutedTextBrush = new SolidColorBrush(Color.FromRgb(148, 163, 184));
-    private static readonly Brush CardNormalBg = new SolidColorBrush(Color.FromRgb(15, 22, 36));
-    private static readonly Brush CardActiveBg = new SolidColorBrush(Color.FromArgb(36, 59, 130, 246));
-    private static readonly Brush CardNormalBorder = new SolidColorBrush(Color.FromRgb(30, 41, 59));
-    private static readonly Brush CardActiveBorder = new SolidColorBrush(Color.FromRgb(59, 130, 246));
-    private static readonly Brush EpgNormalBg = new SolidColorBrush(Color.FromRgb(21, 30, 48));
     private static readonly Brush GoldBrush = new SolidColorBrush(Color.FromRgb(245, 158, 11));
 
     private readonly IptvLibraryService _library = new();
@@ -84,6 +77,7 @@ public partial class MainWindow : Window
     private bool _showPlayer = true;
     private bool _isFullscreen;
     private bool _hideControlsInFullscreen;
+    private bool _fillVideo;
     private bool _isDraggingSeek;
     private bool _isUpdatingSeekUi;
     private int _speedIndex;
@@ -170,6 +164,7 @@ public partial class MainWindow : Window
 
             StartupStatusText.Text = "Carregando biblioteca salva (canais, filmes e EPG)...";
             await _library.LoadAsync();
+            ThemeManager.ApplyTheme(_library.Theme);
 
             StartupStatusText.Text = _library.Channels.Count > 0
                 ? $"Organizando {_library.Channels.Count:N0} itens e categorias..."
@@ -204,13 +199,14 @@ public partial class MainWindow : Window
         NavFavBtn.Content = compact ? "★" : "★  Favoritos";
         NavRecentBtn.Content = compact ? "⏱" : "⏱  Recentes";
         AddSourceBtn.Content = compact ? "+" : "+ Adicionar Lista / EPG";
+        SettingsBtn.Content = compact ? "⚙" : "⚙  Configurações e Cores";
 
         Button[] navButtons = [NavLiveBtn, NavVodBtn, NavSeriesBtn, NavFavBtn, NavRecentBtn];
         foreach (var btn in navButtons)
         {
             var isCurrent = btn.Tag as string == _section;
-            btn.Background = isCurrent ? ActiveNavBg : TransparentBrush;
-            btn.Foreground = isCurrent ? ActiveTextBrush : MutedTextBrush;
+            btn.Background = isCurrent ? ThemeManager.CurrentAccentSoftBrush : TransparentBrush;
+            btn.Foreground = isCurrent ? ThemeManager.CurrentAccentTextBrush : MutedTextBrush;
             btn.FontWeight = isCurrent ? FontWeights.SemiBold : FontWeights.Normal;
             btn.HorizontalContentAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
         }
@@ -243,7 +239,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        MainAreaGrid.Margin = new Thickness(18, 14, 18, 14);
+        MainAreaGrid.Margin = new Thickness(20, 16, 20, 16);
         PlayerCardBorder.CornerRadius = new CornerRadius(14);
         PlayerCardBorder.BorderThickness = new Thickness(1);
         VideoHostBorder.CornerRadius = new CornerRadius(13, 13, 0, 0);
@@ -257,7 +253,7 @@ public partial class MainWindow : Window
         {
             case SidebarMode.Full:
                 SidebarCol.Width = new GridLength(270);
-                SidebarPanel.Padding = new Thickness(14);
+                SidebarPanel.Padding = new Thickness(16);
                 BrandTextPanel.Visibility = Visibility.Visible;
                 NavHeaderLabel.Visibility = Visibility.Visible;
                 CategoriesBlock.Visibility = Visibility.Visible;
@@ -356,8 +352,8 @@ public partial class MainWindow : Window
         var catRows = new List<CategoryRow>
         {
             new("Todas", sectionList.Count,
-                _selectedCategory == "Todas" ? ActiveNavBg : TransparentBrush,
-                _selectedCategory == "Todas" ? ActiveTextBrush : MutedTextBrush)
+                _selectedCategory == "Todas" ? ThemeManager.CurrentAccentSoftBrush : TransparentBrush,
+                _selectedCategory == "Todas" ? ThemeManager.CurrentAccentTextBrush : MutedTextBrush)
         };
 
         catRows.AddRange(sectionList
@@ -366,13 +362,13 @@ public partial class MainWindow : Window
             .Select(g => new CategoryRow(
                 g.Key,
                 g.Count(),
-                _selectedCategory == g.Key ? ActiveNavBg : TransparentBrush,
-                _selectedCategory == g.Key ? ActiveTextBrush : MutedTextBrush)));
+                _selectedCategory == g.Key ? ThemeManager.CurrentAccentSoftBrush : TransparentBrush,
+                _selectedCategory == g.Key ? ThemeManager.CurrentAccentTextBrush : MutedTextBrush)));
 
         if (!catRows.Any(c => c.Name == _selectedCategory))
         {
             _selectedCategory = "Todas";
-            catRows[0] = catRows[0] with { BgBrush = ActiveNavBg, TextBrush = ActiveTextBrush };
+            catRows[0] = catRows[0] with { BgBrush = ThemeManager.CurrentAccentSoftBrush, TextBrush = ThemeManager.CurrentAccentTextBrush };
         }
         CategoriesList.ItemsSource = catRows;
 
@@ -413,8 +409,8 @@ public partial class MainWindow : Window
                     Subtitle: sub,
                     StarSymbol: isFav ? "★" : "☆",
                     StarBrush: isFav ? GoldBrush : MutedTextBrush,
-                    CardBg: isActive ? CardActiveBg : CardNormalBg,
-                    CardBorder: isActive ? CardActiveBorder : CardNormalBorder,
+                    CardBg: isActive ? ThemeManager.CurrentAccentSoftBrush : ThemeManager.CurrentElevatedBrush,
+                    CardBorder: isActive ? ThemeManager.CurrentAccentBrush : ThemeManager.CurrentBorderBrush,
                     RemoveRecentVisibility: removeRecentVis);
             }).ToList();
 
@@ -553,8 +549,8 @@ public partial class MainWindow : Window
                 Title: p.Title,
                 Description: p.Description,
                 DescVisibility: string.IsNullOrWhiteSpace(p.Description) ? Visibility.Collapsed : Visibility.Visible,
-                CardBg: isNow ? CardActiveBg : EpgNormalBg,
-                CardBorder: isNow ? CardActiveBorder : TransparentBrush);
+                CardBg: isNow ? ThemeManager.CurrentAccentSoftBrush : ThemeManager.CurrentCardBrush,
+                CardBorder: isNow ? ThemeManager.CurrentAccentBrush : TransparentBrush);
         }).ToList();
 
         EpgList.ItemsSource = rows;
@@ -567,9 +563,21 @@ public partial class MainWindow : Window
         if (channel.Kind == StreamKind.Series && string.IsNullOrEmpty(channel.Url))
         {
             var seriesWin = new SeriesWindow(channel, _library) { Owner = this };
-            if (seriesWin.ShowDialog() == true && seriesWin.SelectedEpisodeChannel is not null)
+            var ok = seriesWin.ShowDialog() == true;
+            if (seriesWin.FavoriteToggled)
             {
-                await PlayChannelAsync(seriesWin.SelectedEpisodeChannel);
+                RefreshView();
+            }
+            if (ok && seriesWin.SelectedEpisodeChannel is not null)
+            {
+                if (seriesWin.SendToMultiStream)
+                {
+                    OpenMultiStream(seriesWin.SelectedEpisodeChannel);
+                }
+                else
+                {
+                    await PlayChannelAsync(seriesWin.SelectedEpisodeChannel);
+                }
             }
             return;
         }
@@ -608,6 +616,9 @@ public partial class MainWindow : Window
         SpeedBtn.Content = "1.0x";
         _mediaPlayer.SetRate(1.0f);
         _mediaPlayer.Play(media);
+        _mediaPlayer.CropGeometry = _fillVideo && PlayerView.ActualWidth > 0 && PlayerView.ActualHeight > 0
+            ? $"{(int)PlayerView.ActualWidth}:{(int)PlayerView.ActualHeight}"
+            : null;
         if (startTimeMs > 0 && channel.Kind != StreamKind.Live)
         {
             _mediaPlayer.Time = startTimeMs;
@@ -774,7 +785,8 @@ public partial class MainWindow : Window
 
     private void OnOpenDetachedWindow(object sender, RoutedEventArgs e) => OpenDetachedPlayer(asPip: false);
 
-    private void OnOpenMultiStream(object sender, RoutedEventArgs e) => OpenMultiStream(_activeChannel);
+    private void OnOpenMultiStream(object sender, RoutedEventArgs e) =>
+        OpenMultiStream(_activeChannel ?? _detachedWindow?.CurrentChannel);
 
     private void OnAddToMultiStream(object sender, RoutedEventArgs e)
     {
@@ -789,18 +801,54 @@ public partial class MainWindow : Window
     {
         if (_libVlc is null) return;
 
+        long resumeTimeMs = 0;
+        if (channel is not null && channel.Kind != StreamKind.Live)
+        {
+            if (_activeChannel is not null &&
+                channel.Id == _activeChannel.Id &&
+                _mediaPlayer is not null &&
+                _mediaPlayer.Time > 0)
+            {
+                resumeTimeMs = _mediaPlayer.Time;
+            }
+            else if (_detachedWindow?.CurrentChannel is not null &&
+                channel.Id == _detachedWindow.CurrentChannel.Id &&
+                _detachedWindow.CurrentTimeMs > 0)
+            {
+                resumeTimeMs = _detachedWindow.CurrentTimeMs;
+            }
+        }
+
+        _mediaPlayer?.Stop();
+        if (_detachedWindow is not null)
+        {
+            var detached = _detachedWindow;
+            _detachedWindow = null;
+            detached.Close();
+        }
+
         if (_multiStreamWindow is not null)
         {
             if (channel is not null && !string.IsNullOrWhiteSpace(channel.Url))
             {
-                _multiStreamWindow.AddChannelToNextSlot(channel);
+                _multiStreamWindow.AddChannelToNextSlot(channel, resumeTimeMs);
             }
             _multiStreamWindow.Activate();
             return;
         }
 
-        _mediaPlayer?.Stop();
-        var msWin = new MultiStreamWindow(_libVlc, _library, channel);
+        var msWin = new MultiStreamWindow(_libVlc, _library, channel, resumeTimeMs);
+        msWin.DockBackRequested += async (ch, time) =>
+        {
+            if (_multiStreamWindow == msWin)
+            {
+                _multiStreamWindow = null;
+            }
+            if (ch is not null)
+            {
+                await PlayChannelAsync(ch, time);
+            }
+        };
         msWin.Closed += (_, _) =>
         {
             if (_multiStreamWindow == msWin)
@@ -834,6 +882,17 @@ public partial class MainWindow : Window
     {
         var modal = new AddSourceWindow(_library, 0) { Owner = this };
         if (modal.ShowDialog() == true)
+        {
+            RefreshView();
+        }
+    }
+
+    private void OnOpenSettings(object sender, RoutedEventArgs e)
+    {
+        var settingsWin = new SettingsWindow(_library) { Owner = this };
+        settingsWin.ThemeApplied += () => RefreshView();
+        settingsWin.ShowDialog();
+        if (settingsWin.LibraryChanged)
         {
             RefreshView();
         }
@@ -1108,6 +1167,23 @@ public partial class MainWindow : Window
         if (_activeChannel is null) return;
         await _library.ToggleFavoriteAsync(_activeChannel.Id);
         RefreshView();
+    }
+
+    private void OnToggleVideoFit(object sender, RoutedEventArgs e)
+    {
+        _fillVideo = !_fillVideo;
+        if (_mediaPlayer is not null)
+        {
+            if (_fillVideo && PlayerView.ActualWidth > 0 && PlayerView.ActualHeight > 0)
+            {
+                _mediaPlayer.CropGeometry = $"{(int)PlayerView.ActualWidth}:{(int)PlayerView.ActualHeight}";
+            }
+            else
+            {
+                _mediaPlayer.CropGeometry = null;
+            }
+        }
+        VideoFitBtn.Content = _fillVideo ? "⬌ Ajustar" : "⬌ Preencher";
     }
 
     private async void OnReloadStreamClick(object sender, RoutedEventArgs e)

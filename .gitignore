@@ -1,7 +1,11 @@
 node_modules/
 dist/
 dist-electron/
+release/
 .expo/
 *.tsbuildinfo
 .DS_Store
 Thumbs.db
+csharp/**/bin/
+csharp/**/obj/
+csharp/.vs/

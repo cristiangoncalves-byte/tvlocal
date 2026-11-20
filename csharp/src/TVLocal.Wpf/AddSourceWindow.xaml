@@ -2,118 +2,92 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Adicionar Lista / Fonte IPTV"
-        Width="520" Height="450"
+        Icon="pack://application:,,,/Assets/tv-local.ico"
+        Width="580" Height="500"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        Background="#0F1624"
+        Background="{DynamicResource ElevatedBrush}"
         Foreground="#F1F5F9">
-    <Window.Resources>
-        <Style TargetType="TabControl">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-        </Style>
-        <Style TargetType="TabItem">
-            <Setter Property="Foreground" Value="#94A3B8"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Margin" Value="0,0,6,8"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TabItem">
-                        <Border x:Name="Bd" Background="#151E30" BorderBrush="#26334D" BorderThickness="1"
-                                CornerRadius="8" Padding="11,7">
-                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#3B82F6"/>
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="#3B82F6"/>
-                                <Setter Property="Foreground" Value="#FFFFFF"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="#60A5FA"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
-
-    <Grid Margin="20">
+    <Grid Margin="24">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Text="Adicionar Lista / Fonte IPTV" FontSize="18" FontWeight="Bold" Margin="0,0,0,14"/>
+        <TextBlock Grid.Row="0" Text="Adicionar Lista / Fonte IPTV" FontSize="19" FontWeight="Bold" Margin="0,0,0,14"/>
 
-        <TabControl x:Name="Tabs" Grid.Row="1">
-            <TabItem Header="URL M3U">
-                <StackPanel Margin="0,6,0,0">
-                    <TextBlock Text="Nome da lista" Foreground="#94A3B8" Margin="0,0,0,6"/>
-                    <TextBox x:Name="M3uNameBox" Text="Minha Lista IPTV" Margin="0,0,0,12"/>
-                    <TextBlock Text="URL da playlist (.m3u / .m3u8)" Foreground="#94A3B8" Margin="0,0,0,6"/>
-                    <TextBox x:Name="M3uUrlBox" Tag="https://exemplo.com/lista.m3u" Margin="0,0,0,16"/>
-                    <Button Content="Importar Lista M3U" Style="{StaticResource PrimaryButton}" Click="OnImportM3uUrl"/>
-                </StackPanel>
-            </TabItem>
+        <!-- Abas em Botões Reais (sem corte) -->
+        <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
+            <Button x:Name="TabM3uUrlBtn" Content="URL M3U" Padding="12,8" Margin="0,0,8,6" Tag="0" Click="OnTabClick"/>
+            <Button x:Name="TabM3uFileBtn" Content="Arquivo .M3U" Padding="12,8" Margin="0,0,8,6" Tag="1" Click="OnTabClick"/>
+            <Button x:Name="TabXtreamBtn" Content="Xtream Codes" Padding="12,8" Margin="0,0,8,6" Tag="2" Click="OnTabClick"/>
+            <Button x:Name="TabEpgBtn" Content="EPG (XMLTV)" Padding="12,8" Margin="0,0,8,6" Tag="3" Click="OnTabClick"/>
+            <Button x:Name="TabDemoBtn" Content="Demo" Padding="12,8" Margin="0,0,0,6" Tag="4" Click="OnTabClick"/>
+        </WrapPanel>
 
-            <TabItem Header="Arquivo .M3U">
-                <StackPanel Margin="0,6,0,0">
-                    <TextBlock Text="Selecione um arquivo .m3u, .m3u8 ou .txt do seu computador."
-                               TextWrapping="Wrap" Foreground="#94A3B8" Margin="0,0,0,16"/>
-                    <Button Content="Escolher Arquivo .M3U..." Style="{StaticResource PrimaryButton}" Click="OnPickM3uFile"/>
-                </StackPanel>
-            </TabItem>
+        <Grid x:Name="TabContentHost" Grid.Row="2">
+            <!-- 0: URL M3U -->
+            <StackPanel x:Name="PanelM3uUrl">
+                <TextBlock Text="Nome da lista" FontSize="12.5" Foreground="#94A3B8" Margin="0,0,0,6"/>
+                <TextBox x:Name="M3uNameBox" Text="Minha Lista IPTV" Margin="0,0,0,14"/>
+                <TextBlock Text="URL da playlist (.m3u / .m3u8)" FontSize="12.5" Foreground="#94A3B8" Margin="0,0,0,6"/>
+                <TextBox x:Name="M3uUrlBox" Tag="https://exemplo.com/lista.m3u" Margin="0,0,0,18"/>
+                <Button Content="Importar Lista M3U" Style="{StaticResource PrimaryButton}" Padding="14,10" Click="OnImportM3uUrl"/>
+            </StackPanel>
 
-            <TabItem Header="Xtream Codes">
-                <StackPanel Margin="0,6,0,0">
-                    <TextBlock Text="Nome do perfil" Foreground="#94A3B8" Margin="0,0,0,4"/>
-                    <TextBox x:Name="XtNameBox" Text="Servidor Xtream" Margin="0,0,0,8"/>
-                    <TextBlock Text="Servidor (ex.: http://servidor:8080)" Foreground="#94A3B8" Margin="0,0,0,4"/>
-                    <TextBox x:Name="XtServerBox" Tag="http://servidor.exemplo.com:8080" Margin="0,0,0,8"/>
-                    <Grid Margin="0,0,0,12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Usuário" Foreground="#94A3B8" Margin="0,0,0,4"/>
-                            <TextBox x:Name="XtUserBox"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="2">
-                            <TextBlock Text="Senha" Foreground="#94A3B8" Margin="0,0,0,4"/>
-                            <PasswordBox x:Name="XtPassBox"/>
-                        </StackPanel>
-                    </Grid>
-                    <Button Content="Conectar Xtream Codes" Style="{StaticResource PrimaryButton}" Click="OnConnectXtream"/>
-                </StackPanel>
-            </TabItem>
+            <!-- 1: Arquivo .M3U -->
+            <StackPanel x:Name="PanelM3uFile" Visibility="Collapsed">
+                <TextBlock Text="Selecione um arquivo .m3u, .m3u8 ou .txt do seu computador."
+                           FontSize="13" TextWrapping="Wrap" Foreground="#94A3B8" LineHeight="20" Margin="0,0,0,18"/>
+                <Button Content="Escolher Arquivo .M3U..." Style="{StaticResource PrimaryButton}" Padding="14,10" Click="OnPickM3uFile"/>
+            </StackPanel>
 
-            <TabItem Header="EPG (XMLTV)">
-                <StackPanel Margin="0,6,0,0">
-                    <TextBlock Text="URL do guia XMLTV (.xml)" Foreground="#94A3B8" Margin="0,0,0,6"/>
-                    <TextBox x:Name="EpgUrlBox" Tag="https://exemplo.com/epg.xml" Margin="0,0,0,10"/>
-                    <Button Content="Carregar EPG por URL" Style="{StaticResource PrimaryButton}" Click="OnImportEpgUrl" Margin="0,0,0,12"/>
-                    <Button Content="Ou escolher arquivo .XML local..." Click="OnPickEpgFile"/>
-                </StackPanel>
-            </TabItem>
+            <!-- 2: Xtream Codes -->
+            <StackPanel x:Name="PanelXtream" Visibility="Collapsed">
+                <TextBlock Text="Nome do perfil" FontSize="12.5" Foreground="#94A3B8" Margin="0,0,0,5"/>
+                <TextBox x:Name="XtNameBox" Text="Servidor Xtream" Margin="0,0,0,10"/>
+                <TextBlock Text="Servidor (ex.: http://servidor:8080)" FontSize="12.5" Foreground="#94A3B8" Margin="0,0,0,5"/>
+                <TextBox x:Name="XtServerBox" Tag="http://servidor.exemplo.com:8080" Margin="0,0,0,10"/>
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Usuário" FontSize="12.5" Foreground="#94A3B8" Margin="0,0,0,5"/>
+                        <TextBox x:Name="XtUserBox"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Senha" FontSize="12.5" Foreground="#94A3B8" Margin="0,0,0,5"/>
+                        <PasswordBox x:Name="XtPassBox"/>
+                    </StackPanel>
+                </Grid>
+                <Button Content="Conectar Xtream Codes" Style="{StaticResource PrimaryButton}" Padding="14,10" Click="OnConnectXtream"/>
+            </StackPanel>
 
-            <TabItem Header="Demo">
-                <StackPanel Margin="0,6,0,0">
-                    <TextBlock Text="Carregue uma lista de demonstração com streams públicos e legais (Big Buck Bunny, Sintel, BipBop) para testar o player nativo LibVLC."
-                               TextWrapping="Wrap" Foreground="#94A3B8" LineHeight="20" Margin="0,0,0,18"/>
-                    <Button Content="Carregar Lista Demo Agora" Style="{StaticResource PrimaryButton}" Click="OnLoadDemo"/>
-                </StackPanel>
-            </TabItem>
-        </TabControl>
+            <!-- 3: EPG XMLTV -->
+            <StackPanel x:Name="PanelEpg" Visibility="Collapsed">
+                <TextBlock Text="URL do guia XMLTV (.xml)" FontSize="12.5" Foreground="#94A3B8" Margin="0,0,0,6"/>
+                <TextBox x:Name="EpgUrlBox" Tag="https://exemplo.com/epg.xml" Margin="0,0,0,12"/>
+                <Button Content="Carregar EPG por URL" Style="{StaticResource PrimaryButton}" Padding="14,10" Click="OnImportEpgUrl" Margin="0,0,0,12"/>
+                <Button Content="Ou escolher arquivo .XML local..." Padding="14,10" Click="OnPickEpgFile"/>
+            </StackPanel>
 
-        <StackPanel Grid.Row="2" Margin="0,10,0,0">
+            <!-- 4: Demo -->
+            <StackPanel x:Name="PanelDemo" Visibility="Collapsed">
+                <TextBlock Text="Carregue uma lista de demonstração com streams públicos e legais (Big Buck Bunny, Sintel, BipBop) para testar o player nativo LibVLC."
+                           FontSize="13" TextWrapping="Wrap" Foreground="#94A3B8" LineHeight="21" Margin="0,0,0,20"/>
+                <Button Content="Carregar Lista Demo Agora" Style="{StaticResource PrimaryButton}" Padding="14,10" Click="OnLoadDemo"/>
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Grid.Row="3" Margin="0,12,0,0">
             <ProgressBar x:Name="BusyBar" Height="5" IsIndeterminate="True" Visibility="Collapsed"
-                         Background="#1E293B" Foreground="#3B82F6" BorderThickness="0" Margin="0,0,0,6"/>
+                         Background="{DynamicResource CardBrush}" Foreground="{DynamicResource AccentBrush}"
+                         BorderThickness="0" Margin="0,0,0,6"/>
             <TextBlock x:Name="StatusText" Foreground="#93C5FD" TextWrapping="Wrap"/>
         </StackPanel>
     </Grid>

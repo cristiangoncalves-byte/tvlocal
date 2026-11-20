@@ -10,6 +10,8 @@ import {
   type XtreamCredentials,
 } from '@tv-local/core';
 import { smartFetch } from '../utils/network';
+import { DEFAULT_WEB_THEME, type WebThemeSettings } from '../components/SettingsModal';
+import type { WebPlayerSizeMode, WebVideoFit } from '../components/VideoPlayer';
 
 export type NavSection = 'live' | 'vod' | 'series' | 'favorites' | 'recents';
 
@@ -21,13 +23,27 @@ interface PersistedState {
   favorites: string[];
   recents: string[];
   epg: EpgMap;
+  theme?: WebThemeSettings;
+  playerSizeMode?: WebPlayerSizeMode;
+  videoContentFit?: WebVideoFit;
+  forceLandscapeFullscreen?: boolean;
 }
 
 function loadPersistedState(): PersistedState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      return { sources: [], channels: [], favorites: [], recents: [], epg: {} };
+      return {
+        sources: [],
+        channels: [],
+        favorites: [],
+        recents: [],
+        epg: {},
+        theme: DEFAULT_WEB_THEME,
+        playerSizeMode: 'normal',
+        videoContentFit: 'contain',
+        forceLandscapeFullscreen: true,
+      };
     }
     const parsed = JSON.parse(raw) as Partial<PersistedState>;
     return {
@@ -36,9 +52,23 @@ function loadPersistedState(): PersistedState {
       favorites: Array.isArray(parsed.favorites) ? parsed.favorites : [],
       recents: Array.isArray(parsed.recents) ? parsed.recents : [],
       epg: parsed.epg && typeof parsed.epg === 'object' ? parsed.epg : {},
+      theme: parsed.theme ?? DEFAULT_WEB_THEME,
+      playerSizeMode: parsed.playerSizeMode ?? 'normal',
+      videoContentFit: parsed.videoContentFit ?? 'contain',
+      forceLandscapeFullscreen: parsed.forceLandscapeFullscreen ?? true,
     };
   } catch {
-    return { sources: [], channels: [], favorites: [], recents: [], epg: {} };
+    return {
+      sources: [],
+      channels: [],
+      favorites: [],
+      recents: [],
+      epg: {},
+      theme: DEFAULT_WEB_THEME,
+      playerSizeMode: 'normal',
+      videoContentFit: 'contain',
+      forceLandscapeFullscreen: true,
+    };
   }
 }
 
@@ -51,6 +81,16 @@ export function useIptvStore() {
   const [activeSeries, setActiveSeries] = useState<Channel | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const t = state.theme ?? DEFAULT_WEB_THEME;
+    const root = document.documentElement;
+    root.style.setProperty('--bg', t.bg);
+    root.style.setProperty('--bg-elevated', t.elevated);
+    root.style.setProperty('--bg-card', t.card);
+    root.style.setProperty('--accent', t.accent);
+    root.style.setProperty('--accent-hover', t.accent);
+  }, [state.theme]);
 
   useEffect(() => {
     try {
@@ -277,6 +317,28 @@ export function useIptvStore() {
     }));
   }, []);
 
+  const updateTheme = useCallback((theme: WebThemeSettings) => {
+    setState((prev) => ({ ...prev, theme }));
+    setStatusMessage(`Tema "${theme.presetName}" aplicado e salvo!`);
+  }, []);
+
+  const resetTheme = useCallback(() => {
+    setState((prev) => ({ ...prev, theme: DEFAULT_WEB_THEME }));
+    setStatusMessage('Cores restauradas para o padrão.');
+  }, []);
+
+  const setPlayerSizeMode = useCallback((playerSizeMode: WebPlayerSizeMode) => {
+    setState((prev) => ({ ...prev, playerSizeMode }));
+  }, []);
+
+  const setVideoContentFit = useCallback((videoContentFit: WebVideoFit) => {
+    setState((prev) => ({ ...prev, videoContentFit }));
+  }, []);
+
+  const setForceLandscapeFullscreen = useCallback((forceLandscapeFullscreen: boolean) => {
+    setState((prev) => ({ ...prev, forceLandscapeFullscreen }));
+  }, []);
+
   const sectionChannels = useMemo(() => {
     if (section === 'favorites') {
       const favSet = new Set(state.favorites);
@@ -327,6 +389,15 @@ export function useIptvStore() {
     sources: state.sources,
     channels: state.channels,
     epg: state.epg,
+    theme: state.theme ?? DEFAULT_WEB_THEME,
+    playerSizeMode: state.playerSizeMode ?? 'normal',
+    videoContentFit: state.videoContentFit ?? 'contain',
+    forceLandscapeFullscreen: state.forceLandscapeFullscreen ?? true,
+    setPlayerSizeMode,
+    setVideoContentFit,
+    setForceLandscapeFullscreen,
+    updateTheme,
+    resetTheme,
     favoriteSet,
     section,
     setSection: (next: NavSection) => {

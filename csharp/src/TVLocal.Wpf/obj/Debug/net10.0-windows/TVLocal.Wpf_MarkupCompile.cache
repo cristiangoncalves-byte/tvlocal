@@ -4,17 +4,17 @@
 winexe
 C#
 .cs
-C:\Meus Projetos\TV Local\csharp\src\TVLocal.Wpf\obj\Debug\net10.0-windows\
+c:\Meus Projetos\TV Local\csharp\src\TVLocal.Wpf\obj\Debug\net10.0-windows\
 TVLocal.Wpf
 none
 false
 TRACE;DEBUG;NET;NET10_0;NETCOREAPP;WINDOWS;WINDOWS7_0;NET5_0_OR_GREATER;NET6_0_OR_GREATER;NET7_0_OR_GREATER;NET8_0_OR_GREATER;NET9_0_OR_GREATER;NET10_0_OR_GREATER;NETCOREAPP1_0_OR_GREATER;NETCOREAPP1_1_OR_GREATER;NETCOREAPP2_0_OR_GREATER;NETCOREAPP2_1_OR_GREATER;NETCOREAPP2_2_OR_GREATER;NETCOREAPP3_0_OR_GREATER;NETCOREAPP3_1_OR_GREATER;WINDOWS7_0_OR_GREATER
-C:\Meus Projetos\TV Local\csharp\src\TVLocal.Wpf\App.xaml
-7-1336052227
+c:\Meus Projetos\TV Local\csharp\src\TVLocal.Wpf\App.xaml
+91530565862
 12531785875939
-12-2120035491
-2091138618640
-AddSourceWindow.xaml;MainWindow.xaml;MovieDetailsWindow.xaml;MultiStreamTile.xaml;MultiStreamWindow.xaml;PlayerWindow.xaml;SeriesWindow.xaml;
+16-55472835
+209424520719
+AddSourceWindow.xaml;EditSourceWindow.xaml;MainWindow.xaml;MovieDetailsWindow.xaml;MultiStreamTile.xaml;MultiStreamWindow.xaml;PlayerWindow.xaml;SeriesWindow.xaml;SettingsWindow.xaml;
 
 False
 

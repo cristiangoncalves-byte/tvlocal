@@ -101,6 +101,16 @@ public sealed record XtreamAccountInfo(
     int ActiveConnections,
     int MaxConnections);
 
+public sealed record AppThemeSettings(
+    string PresetName,
+    string BackgroundHex,
+    string SurfaceHex,
+    string CardHex,
+    string AccentHex)
+{
+    public static AppThemeSettings Default => new("Padrao", "#080C14", "#0F1624", "#151E30", "#3B82F6");
+}
+
 public sealed class IptvStoreSnapshot
 {
     public List<PlaylistSource> Sources { get; set; } = [];
@@ -108,4 +118,5 @@ public sealed class IptvStoreSnapshot
     public List<string> Favorites { get; set; } = [];
     public List<string> Recents { get; set; } = [];
     public Dictionary<string, List<EpgProgram>> Epg { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public AppThemeSettings Theme { get; set; } = AppThemeSettings.Default;
 }

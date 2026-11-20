@@ -12,57 +12,57 @@ build_property.EntryPointFilePath =
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = TVLocal.Blazor
 build_property.RootNamespace = TVLocal.Blazor
-build_property.ProjectDir = C:\Meus Projetos\TV Local\csharp\src\TVLocal.Blazor\
+build_property.ProjectDir = c:\Meus Projetos\TV Local\csharp\src\TVLocal.Blazor\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.RazorLangVersion = 10.0
 build_property.SupportLocalizedComponentNames = 
 build_property.GenerateRazorMetadataSourceChecksumAttributes = 
-build_property.MSBuildProjectDirectory = C:\Meus Projetos\TV Local\csharp\src\TVLocal.Blazor
+build_property.MSBuildProjectDirectory = c:\Meus Projetos\TV Local\csharp\src\TVLocal.Blazor
 build_property._RazorSourceGeneratorDebug = 
 build_property.EffectiveAnalysisLevelStyle = 10.0
 build_property.EnableCodeStyleSeverity = 
 
-[C:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/App.razor]
+[c:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/App.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xBcHAucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Pages/Counter.razor]
+[c:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Pages/Counter.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xDb3VudGVyLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Pages/Error.razor]
+[c:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Pages/Error.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xFcnJvci5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Pages/Home.razor]
+[c:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Pages/Home.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xIb21lLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Pages/NotFound.razor]
+[c:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Pages/NotFound.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xOb3RGb3VuZC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Pages/Weather.razor]
+[c:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Pages/Weather.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xXZWF0aGVyLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Routes.razor]
+[c:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Routes.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xSb3V0ZXMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/_Imports.razor]
+[c:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/_Imports.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xfSW1wb3J0cy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Layout/MainLayout.razor]
+[c:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Layout/MainLayout.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcTWFpbkxheW91dC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = b-5wjcjidivq
 
-[C:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Layout/NavMenu.razor]
+[c:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Layout/NavMenu.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcTmF2TWVudS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = b-rtdjvnbx15
 
-[C:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Layout/ReconnectModal.razor]
+[c:/Meus Projetos/TV Local/csharp/src/TVLocal.Blazor/Components/Layout/ReconnectModal.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcUmVjb25uZWN0TW9kYWwucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = b-yc5m3ejnkh

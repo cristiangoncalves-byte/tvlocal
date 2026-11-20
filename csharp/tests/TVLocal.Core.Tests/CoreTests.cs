@@ -146,4 +146,60 @@ public class CoreTests
         Assert.Equal("NBA: Lakers vs Warriors", progs[0].Title);
         Assert.Equal("Jogo ao vivo da temporada regular.", progs[0].Description);
     }
+
+    [Fact]
+    public async Task IptvLibraryService_PersistsAndResetsThemeSettings()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"tvlocal_theme_{Guid.NewGuid():N}.json");
+        try
+        {
+            var lib1 = new IptvLibraryService(tempFile);
+            Assert.Equal("#3B82F6", lib1.Theme.AccentHex);
+
+            var customTheme = new AppThemeSettings("Esmeralda", "#07110E", "#0C1C17", "#122922", "#10B981");
+            await lib1.UpdateThemeAsync(customTheme);
+
+            var lib2 = new IptvLibraryService(tempFile);
+            await lib2.LoadAsync();
+            Assert.Equal("Esmeralda", lib2.Theme.PresetName);
+            Assert.Equal("#10B981", lib2.Theme.AccentHex);
+
+            await lib2.ResetThemeAsync();
+            var lib3 = new IptvLibraryService(tempFile);
+            await lib3.LoadAsync();
+            Assert.Equal(AppThemeSettings.Default.AccentHex, lib3.Theme.AccentHex);
+            Assert.Equal("Padrao", lib3.Theme.PresetName);
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task IptvLibraryService_UpdatesSavedSourceNameAndPersists()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"tvlocal_edit_{Guid.NewGuid():N}.json");
+        try
+        {
+            var lib = new IptvLibraryService(tempFile);
+            const string m3u = """
+                #EXTM3U
+                #EXTINF:-1 group-title="Geral",Canal Teste
+                https://example.com/live/1.m3u8
+                """;
+            var src = await lib.AddM3uFromContentAsync("Lista Original", m3u);
+            var updated = await lib.UpdateSourceAsync(src.Id, "Lista Renomeada", reloadChannels: false);
+            Assert.Equal("Lista Renomeada", updated.Name);
+
+            var libReloaded = new IptvLibraryService(tempFile);
+            await libReloaded.LoadAsync();
+            Assert.Single(libReloaded.Sources);
+            Assert.Equal("Lista Renomeada", libReloaded.Sources[0].Name);
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
 }

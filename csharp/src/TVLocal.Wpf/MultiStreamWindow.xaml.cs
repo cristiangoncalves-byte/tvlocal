@@ -18,7 +18,9 @@ public partial class MultiStreamWindow : Window
     private bool _drawerVisible = true;
     private bool _isFullscreen;
 
-    public MultiStreamWindow(LibVLC libVlc, IptvLibraryService library, Channel? initialChannel = null)
+    public event Action<Channel?, long>? DockBackRequested;
+
+    public MultiStreamWindow(LibVLC libVlc, IptvLibraryService library, Channel? initialChannel = null, long initialTimeMs = 0)
     {
         InitializeComponent();
         _libVlc = libVlc;
@@ -39,14 +41,14 @@ public partial class MultiStreamWindow : Window
 
         if (initialChannel is not null && !string.IsNullOrWhiteSpace(initialChannel.Url))
         {
-            _tiles[0].Play(initialChannel);
+            _tiles[0].Play(initialChannel, initialTimeMs);
             SelectSlot(1);
         }
 
         Closed += OnWindowClosed;
     }
 
-    public void AddChannelToNextSlot(Channel channel)
+    public void AddChannelToNextSlot(Channel channel, long startTimeMs = 0)
     {
         if (string.IsNullOrWhiteSpace(channel.Url)) return;
 
@@ -54,7 +56,7 @@ public partial class MultiStreamWindow : Window
         var emptyIndex = _tiles.Take(visibleCount).ToList().FindIndex(t => t.CurrentChannel is null);
         var targetIndex = emptyIndex != -1 ? emptyIndex : _selectedSlotIndex % visibleCount;
 
-        _tiles[targetIndex].Play(channel);
+        _tiles[targetIndex].Play(channel, startTimeMs);
         var nextEmpty = _tiles.Take(visibleCount).ToList().FindIndex(t => t.CurrentChannel is null);
         SelectSlot(nextEmpty != -1 ? nextEmpty : (targetIndex + 1) % visibleCount);
     }
@@ -250,6 +252,22 @@ public partial class MultiStreamWindow : Window
     }
 
     private void OnToggleFullscreen(object sender, RoutedEventArgs e) => ToggleFullscreen();
+
+    private void OnDockBackClick(object sender, RoutedEventArgs e)
+    {
+        var visibleCount = GetVisibleSlotCount(_currentLayout);
+        var tile = _tiles[_selectedSlotIndex].CurrentChannel is not null
+            ? _tiles[_selectedSlotIndex]
+            : _tiles.Take(visibleCount).FirstOrDefault(t => t.CurrentChannel is not null);
+        var ch = tile?.CurrentChannel;
+        var time = ch is not null && ch.Kind != StreamKind.Live ? Math.Max(0, tile!.CurrentTimeMs) : 0;
+        foreach (var t in _tiles)
+        {
+            t.Stop();
+        }
+        DockBackRequested?.Invoke(ch, time);
+        Close();
+    }
 
     private void ToggleFullscreen()
     {

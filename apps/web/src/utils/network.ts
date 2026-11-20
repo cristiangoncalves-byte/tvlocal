@@ -5,6 +5,13 @@ export interface DesktopBridge {
   proxyBaseUrl: string;
   platform: string;
   openM3uFile?: () => Promise<{ name: string; content: string } | null>;
+  getAppVersion?: () => Promise<string>;
+  checkForUpdates?: () => Promise<{
+    status: 'dev' | 'available' | 'up-to-date' | 'error';
+    currentVersion: string;
+    latestVersion?: string;
+    message: string;
+  }>;
 }
 
 declare global {

@@ -2550,3 +2550,8 @@ C:\Meus Projetos\TV Local\csharp\src\TVLocal.Wpf\obj\Debug\net10.0-windows\Gener
 C:\Meus Projetos\TV Local\csharp\src\TVLocal.Wpf\obj\Debug\net10.0-windows\TVLocal.Wpf_MarkupCompile.lref
 C:\Meus Projetos\TV Local\csharp\src\TVLocal.Wpf\obj\Debug\net10.0-windows\MovieDetailsWindow.g.cs
 C:\Meus Projetos\TV Local\csharp\src\TVLocal.Wpf\obj\Debug\net10.0-windows\MovieDetailsWindow.baml
+C:\Meus Projetos\TV Local\csharp\src\TVLocal.Wpf\obj\Debug\net10.0-windows\SettingsWindow.baml
+C:\Meus Projetos\TV Local\csharp\src\TVLocal.Wpf\obj\Debug\net10.0-windows\SettingsWindow.g.cs
+C:\Meus Projetos\TV Local\csharp\src\TVLocal.Wpf\obj\Debug\net10.0-windows\EditSourceWindow.baml
+C:\Meus Projetos\TV Local\csharp\src\TVLocal.Wpf\obj\Debug\net10.0-windows\EditSourceWindow.g.cs
+c:\Meus Projetos\TV Local\csharp\src\TVLocal.Wpf\obj\Debug\net10.0-windows\TVLocal.Wpf.sourcelink.json

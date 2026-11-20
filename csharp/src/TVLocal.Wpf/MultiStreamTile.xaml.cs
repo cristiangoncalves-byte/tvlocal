@@ -22,9 +22,11 @@ public partial class MultiStreamTile : UserControl
     private readonly DispatcherTimer _recordTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private Channel? _channel;
     private bool _isMuted;
+    private long _pendingStartTimeMs;
 
     public int SlotNumber { get; private set; }
     public Channel? CurrentChannel => _channel;
+    public long CurrentTimeMs => _player?.Time ?? 0;
     public bool IsMuted => _isMuted;
 
     public event Action<MultiStreamTile>? SlotSelected;
@@ -51,7 +53,16 @@ public partial class MultiStreamTile : UserControl
             EnableMouseInput = false,
             EnableKeyInput = false,
         };
-        _player.Playing += (_, _) => Dispatcher.InvokeAsync(() => PlayPauseBtn.Content = "⏸");
+        _player.Playing += (_, _) =>
+        {
+            if (_pendingStartTimeMs > 0 && _player is not null && _player.IsSeekable)
+            {
+                var target = _pendingStartTimeMs;
+                _pendingStartTimeMs = 0;
+                _player.Time = target;
+            }
+            Dispatcher.InvokeAsync(() => PlayPauseBtn.Content = "⏸");
+        };
         _player.Paused += (_, _) => Dispatcher.InvokeAsync(() => PlayPauseBtn.Content = "▶");
         _player.Stopped += (_, _) => Dispatcher.InvokeAsync(() => PlayPauseBtn.Content = "▶");
         TileVideoView.MediaPlayer = _player;
@@ -66,11 +77,12 @@ public partial class MultiStreamTile : UserControl
         TileBorder.BorderThickness = new Thickness(selected ? 2 : 1.5);
     }
 
-    public void Play(Channel channel)
+    public void Play(Channel channel, long startTimeMs = 0)
     {
         if (_libVlc is null || _player is null || string.IsNullOrWhiteSpace(channel.Url)) return;
 
         _channel = channel;
+        _pendingStartTimeMs = channel.Kind != StreamKind.Live && startTimeMs > 0 ? startTimeMs : 0;
         ChannelNameText.Text = channel.Name;
         EmptyOverlay.Visibility = Visibility.Collapsed;
         TileVideoView.Visibility = Visibility.Visible;
@@ -87,6 +99,10 @@ public partial class MultiStreamTile : UserControl
         }
 
         _player.Play(media);
+        if (_pendingStartTimeMs > 0)
+        {
+            _player.Time = _pendingStartTimeMs;
+        }
         _player.Mute = _isMuted;
         UpdateAudioUi();
     }
@@ -94,6 +110,7 @@ public partial class MultiStreamTile : UserControl
     public void Stop()
     {
         _channel = null;
+        _pendingStartTimeMs = 0;
         _player?.Stop();
         ChannelNameText.Text = "Slot vazio";
         TileVideoView.Visibility = Visibility.Collapsed;

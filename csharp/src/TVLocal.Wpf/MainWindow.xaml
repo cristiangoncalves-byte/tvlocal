@@ -4,9 +4,10 @@
         xmlns:local="clr-namespace:TVLocal.Wpf"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
         Title="TV Local — IPTV Player (C# WPF + LibVLC)"
+        Icon="pack://application:,,,/Assets/tv-local.ico"
         Width="1380" Height="860"
         MinWidth="860" MinHeight="560"
-        Background="#080C14"
+        Background="{DynamicResource BgBrush}"
         Foreground="#F1F5F9"
         KeyDown="OnWindowKeyDown">
     <Window.Resources>
@@ -95,47 +96,41 @@
         </Grid.ColumnDefinitions>
 
         <!-- Sidebar (Completo 270px / Reduzido 68px / Oculto 0px) -->
-        <Border x:Name="SidebarPanel" Grid.Column="0" Background="#0F1624" BorderBrush="#1E293B" BorderThickness="0,0,1,0" Padding="14">
+        <Border x:Name="SidebarPanel" Grid.Column="0" Background="{DynamicResource ElevatedBrush}"
+                BorderBrush="{DynamicResource BorderBrushDark}" BorderThickness="0,0,1,0" Padding="16">
             <DockPanel>
                 <!-- Brand + CTA -->
-                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,14">
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                        <Border Width="38" Height="38" CornerRadius="10">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                    <GradientStop Color="#3B82F6" Offset="0"/>
-                                    <GradientStop Color="#06B6D4" Offset="1"/>
-                                </LinearGradientBrush>
-                            </Border.Background>
-                            <TextBlock Text="C#" Foreground="White" FontWeight="ExtraBold" FontSize="15"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <StackPanel x:Name="BrandTextPanel" VerticalAlignment="Center" Margin="10,0,0,0">
-                            <TextBlock Text="TV Local" FontSize="16" FontWeight="Bold"/>
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                        <Image Source="pack://application:,,,/Assets/tv-local-logo.png" Width="40" Height="40"
+                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                        <StackPanel x:Name="BrandTextPanel" VerticalAlignment="Center" Margin="12,0,0,0">
+                            <TextBlock Text="TV Local" FontSize="17" FontWeight="Bold"/>
                             <TextBlock Text="WPF + LibVLC Nativo" FontSize="11" Foreground="#94A3B8"/>
                         </StackPanel>
                     </StackPanel>
 
-                    <Button x:Name="AddSourceBtn" Content="+ Adicionar Lista / EPG" Style="{StaticResource PrimaryButton}" Click="OnOpenAddSource"/>
+                    <Button x:Name="AddSourceBtn" Content="+ Adicionar Lista / EPG" Style="{StaticResource PrimaryButton}" Margin="0,0,0,8" Click="OnOpenAddSource"/>
+                    <Button x:Name="SettingsBtn" Content="⚙  Configurações e Cores" Padding="11,8" Click="OnOpenSettings"/>
                 </StackPanel>
 
                 <!-- Navigation -->
-                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,14">
-                    <TextBlock x:Name="NavHeaderLabel" Text="NAVEGAÇÃO" FontSize="11" Foreground="#64748B" Margin="4,0,0,6"/>
-                    <Button x:Name="NavLiveBtn" Content="📺  TV ao Vivo" Style="{StaticResource NavButton}" Margin="0,0,0,3" Tag="Live" Click="OnNavClick"/>
-                    <Button x:Name="NavVodBtn" Content="🎬  Filmes (VOD)" Style="{StaticResource NavButton}" Margin="0,0,0,3" Tag="Vod" Click="OnNavClick"/>
-                    <Button x:Name="NavSeriesBtn" Content="🎞  Séries" Style="{StaticResource NavButton}" Margin="0,0,0,3" Tag="Series" Click="OnNavClick"/>
-                    <Button x:Name="NavFavBtn" Content="★  Favoritos" Style="{StaticResource NavButton}" Margin="0,0,0,3" Tag="Favorites" Click="OnNavClick"/>
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+                    <TextBlock x:Name="NavHeaderLabel" Text="NAVEGAÇÃO" FontSize="11" Foreground="#64748B" Margin="4,0,0,8"/>
+                    <Button x:Name="NavLiveBtn" Content="📺  TV ao Vivo" Style="{StaticResource NavButton}" Margin="0,0,0,4" Tag="Live" Click="OnNavClick"/>
+                    <Button x:Name="NavVodBtn" Content="🎬  Filmes (VOD)" Style="{StaticResource NavButton}" Margin="0,0,0,4" Tag="Vod" Click="OnNavClick"/>
+                    <Button x:Name="NavSeriesBtn" Content="🎞  Séries" Style="{StaticResource NavButton}" Margin="0,0,0,4" Tag="Series" Click="OnNavClick"/>
+                    <Button x:Name="NavFavBtn" Content="★  Favoritos" Style="{StaticResource NavButton}" Margin="0,0,0,4" Tag="Favorites" Click="OnNavClick"/>
                     <Button x:Name="NavRecentBtn" Content="⏱  Recentes" Style="{StaticResource NavButton}" Tag="Recents" Click="OnNavClick"/>
                 </StackPanel>
 
                 <!-- Connected Sources -->
-                <StackPanel x:Name="SourcesBlock" DockPanel.Dock="Bottom" Margin="0,10,0,0">
-                    <TextBlock Text="LISTAS CONECTADAS" FontSize="11" Foreground="#64748B" Margin="4,0,0,6"/>
+                <StackPanel x:Name="SourcesBlock" DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                    <TextBlock Text="LISTAS CONECTADAS" FontSize="11" Foreground="#64748B" Margin="4,0,0,8"/>
                     <ItemsControl x:Name="SourcesList">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="#151E30" CornerRadius="8" Padding="10,8" Margin="0,0,0,6">
+                                <Border Background="{DynamicResource CardBrush}" CornerRadius="9" Padding="11,9" Margin="0,0,0,6">
                                     <DockPanel>
                                         <Button DockPanel.Dock="Right" Content="✕" Padding="7,3" FontSize="11"
                                                 Tag="{Binding Id}" Click="OnRemoveSourceClick"/>
@@ -152,12 +147,12 @@
 
                 <!-- Categories -->
                 <DockPanel x:Name="CategoriesBlock">
-                    <TextBlock DockPanel.Dock="Top" Text="CATEGORIAS" FontSize="11" Foreground="#64748B" Margin="4,0,0,6"/>
+                    <TextBlock DockPanel.Dock="Top" Text="CATEGORIAS" FontSize="11" Foreground="#64748B" Margin="4,0,0,8"/>
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <ItemsControl x:Name="CategoriesList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Button Margin="0,0,0,3" Padding="10,7" Cursor="Hand"
+                                    <Button Margin="0,0,0,4" Padding="10,7" Cursor="Hand"
                                             Background="{Binding BgBrush}" Foreground="{Binding TextBrush}"
                                             BorderThickness="0" Tag="{Binding Name}" Click="OnCategoryClick">
                                         <Button.Template>
@@ -165,7 +160,7 @@
                                                 <Border x:Name="CatBd" Background="{TemplateBinding Background}"
                                                         CornerRadius="8" Padding="{TemplateBinding Padding}">
                                                     <DockPanel>
-                                                        <Border DockPanel.Dock="Right" Background="#1A253B" CornerRadius="10" Padding="7,1">
+                                                        <Border DockPanel.Dock="Right" Background="{DynamicResource CardBrush}" CornerRadius="10" Padding="7,1">
                                                             <TextBlock Text="{Binding Count}" FontSize="11" Foreground="#94A3B8"/>
                                                         </Border>
                                                         <TextBlock Text="{Binding Name}" FontSize="13"
@@ -174,7 +169,7 @@
                                                 </Border>
                                                 <ControlTemplate.Triggers>
                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="CatBd" Property="Background" Value="#1D2940"/>
+                                                        <Setter TargetName="CatBd" Property="Background" Value="{DynamicResource HoverBrush}"/>
                                                     </Trigger>
                                                 </ControlTemplate.Triggers>
                                             </ControlTemplate>
@@ -189,7 +184,7 @@
         </Border>
 
         <!-- Main Area -->
-        <Grid x:Name="MainAreaGrid" Grid.Column="1" Margin="18,14">
+        <Grid x:Name="MainAreaGrid" Grid.Column="1" Margin="20,16">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition x:Name="StageRow" Height="405" MinHeight="140"/>
@@ -238,8 +233,9 @@
 
             <!-- Welcome Hero (quando não há listas) -->
             <Border x:Name="WelcomeHero" Grid.Row="1" Grid.RowSpan="4" Visibility="Collapsed"
-                    Background="#0F1624" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="16"
-                    Padding="38,32" MaxWidth="520" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    Background="{DynamicResource ElevatedBrush}" BorderBrush="{DynamicResource BorderBrushDark}"
+                    BorderThickness="1" CornerRadius="16"
+                    Padding="40,34" MaxWidth="540" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <StackPanel>
                     <TextBlock Text="Bem-vindo ao TV Local (C# WPF)" FontSize="22" FontWeight="Bold"
                                HorizontalAlignment="Center" Margin="0,0,0,10"/>
@@ -260,7 +256,8 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Player Card -->
-                <Border x:Name="PlayerCardBorder" Grid.Column="0" Background="#0F1624" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="14">
+                <Border x:Name="PlayerCardBorder" Grid.Column="0" Background="{DynamicResource ElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrushDark}" BorderThickness="1" CornerRadius="14">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*"/>
@@ -272,7 +269,8 @@
                                 <!-- Overlay escuro quando nenhum canal está ativo -->
                                 <Border x:Name="IdleOverlay" Background="#05080F" Padding="24">
                                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                        <TextBlock Text="📺" FontSize="34" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                        <Image Source="pack://application:,,,/Assets/tv-local-logo.png" Width="56" Height="56"
+                                               RenderOptions.BitmapScalingMode="HighQuality" HorizontalAlignment="Center" Margin="0,0,0,12"/>
                                         <TextBlock Text="Pronto para reproduzir" FontSize="16" FontWeight="SemiBold"
                                                    Foreground="#E2E8F0" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                                         <TextBlock Text="Clique em qualquer canal ou filme na grade abaixo para iniciar"
@@ -297,9 +295,9 @@
                         </Border>
 
                         <!-- Player Controls & Timeline Bar -->
-                        <StackPanel x:Name="PlayerControlsBar" Grid.Row="1" Margin="14,8,14,10">
+                        <StackPanel x:Name="PlayerControlsBar" Grid.Row="1" Margin="16,10,16,12">
                             <!-- Linha do Tempo (Filmes, Séries, Animes & Duração) -->
-                            <Grid x:Name="TimelineRow" Margin="0,0,0,8">
+                            <Grid x:Name="TimelineRow" Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
@@ -342,6 +340,8 @@
                                     <Slider x:Name="VolumeSlider" Width="74" Minimum="0" Maximum="100" Value="90"
                                             VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="OnVolumeChanged"/>
                                     <Button x:Name="FavActiveBtn" Content="☆ Favoritar" Margin="0,0,5,0" Click="OnToggleActiveFavorite"/>
+                                    <Button x:Name="VideoFitBtn" Content="⬌ Preencher" ToolTip="Alternar entre Ajustar e Preencher tela"
+                                            Padding="8,6" Margin="0,0,5,0" Click="OnToggleVideoFit"/>
                                     <Button x:Name="HideControlsBtn" Content="👁" ToolTip="Ocultar/Mostrar controles em Tela Cheia (H)"
                                             Visibility="Collapsed" Padding="8,6" Margin="0,0,5,0" Click="OnHideFullscreenControls"/>
                                     <Button x:Name="FullscreenBtn" Content="⛶" ToolTip="Tela cheia (F)" Padding="9,6" Click="OnToggleFullscreen"/>
@@ -357,19 +357,20 @@
                 </Border>
 
                 <!-- EPG Card (corrigido cabeçalho sem corte) -->
-                <Border x:Name="EpgPanel" Grid.Column="1" Margin="14,0,0,0" Background="#0F1624" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="14" Padding="14">
+                <Border x:Name="EpgPanel" Grid.Column="1" Margin="16,0,0,0" Background="{DynamicResource ElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrushDark}" BorderThickness="1" CornerRadius="14" Padding="16">
                     <DockPanel>
-                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                <Button x:Name="SyncEpgBtn" Content="🔄" ToolTip="Sincronizar EPG da conta atual" FontSize="11.5" Padding="7,4" Margin="0,0,4,0" Click="OnSyncAccountEpgClick"/>
-                                <Button Content="XMLTV" ToolTip="Importar guia XMLTV manual" FontSize="11.5" Padding="8,4" Margin="0,0,4,0" Click="OnOpenEpgImport"/>
+                                <Button x:Name="SyncEpgBtn" Content="🔄" ToolTip="Sincronizar EPG da conta atual" FontSize="11.5" Padding="7,4" Margin="0,0,5,0" Click="OnSyncAccountEpgClick"/>
+                                <Button Content="XMLTV" ToolTip="Importar guia XMLTV manual" FontSize="11.5" Padding="8,4" Margin="0,0,5,0" Click="OnOpenEpgImport"/>
                                 <Button Content="✕" ToolTip="Ocultar painel EPG (E)" FontSize="11" Padding="7,4" Click="OnToggleEpg"/>
                             </StackPanel>
-                            <TextBlock Text="Guia EPG" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                            <TextBlock Text="Guia EPG" FontWeight="Bold" FontSize="14.5" VerticalAlignment="Center"/>
                         </DockPanel>
 
                         <TextBlock x:Name="EpgEmptyText" DockPanel.Dock="Top" Foreground="#94A3B8" FontSize="12.5"
-                                   TextWrapping="Wrap" Text="Selecione um canal para visualizar a programação."/>
+                                   TextWrapping="Wrap" Margin="0,0,0,8" Text="Selecione um canal para visualizar a programação."/>
 
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <ItemsControl x:Name="EpgList">
@@ -427,7 +428,7 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Width="244" Margin="0,0,12,12" CornerRadius="12" Padding="10"
+                                <Border Width="248" Margin="0,0,12,12" CornerRadius="12" Padding="11"
                                         Background="{Binding CardBg}" BorderBrush="{Binding CardBorder}" BorderThickness="1"
                                         Cursor="Hand" Tag="{Binding Channel}"
                                         MouseLeftButtonUp="OnChannelCardClick"
@@ -436,7 +437,7 @@
                                         <Style TargetType="Border">
                                             <Style.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="#151E30"/>
+                                                    <Setter Property="Background" Value="{DynamicResource CardBrush}"/>
                                                 </Trigger>
                                             </Style.Triggers>
                                         </Style>
@@ -591,27 +592,21 @@
 
         <!-- Overlay Inicial de Carregamento (não trava a janela) -->
         <Border x:Name="StartupLoadingOverlay" Grid.ColumnSpan="2" Background="#E6080C14" Visibility="Visible">
-            <Border Background="#0F1624" BorderBrush="#26334D" BorderThickness="1" CornerRadius="16"
-                    Padding="32,26" Width="400" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <Border Background="{DynamicResource ElevatedBrush}" BorderBrush="{DynamicResource BorderBrushDark}"
+                    BorderThickness="1" CornerRadius="16"
+                    Padding="34,28" Width="420" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <StackPanel>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,14">
-                        <Border Width="42" Height="42" CornerRadius="10" Margin="0,0,12,0">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                    <GradientStop Color="#3B82F6" Offset="0"/>
-                                    <GradientStop Color="#06B6D4" Offset="1"/>
-                                </LinearGradientBrush>
-                            </Border.Background>
-                            <TextBlock Text="C#" Foreground="White" FontWeight="ExtraBold" FontSize="16"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,16">
+                        <Image Source="pack://application:,,,/Assets/tv-local-logo.png" Width="46" Height="46"
+                               RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,12,0"/>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="TV Local" FontSize="20" FontWeight="Bold"/>
                             <TextBlock Text="Iniciando aplicativo..." FontSize="12" Foreground="#94A3B8"/>
                         </StackPanel>
                     </StackPanel>
 
-                    <ProgressBar Height="6" IsIndeterminate="True" Background="#1E293B" Foreground="#3B82F6"
+                    <ProgressBar Height="6" IsIndeterminate="True" Background="{DynamicResource CardBrush}"
+                                 Foreground="{DynamicResource AccentBrush}"
                                  BorderThickness="0" Margin="0,0,0,12"/>
                     <TextBlock x:Name="StartupStatusText" Text="Inicializando motor de vídeo LibVLC..."
                                FontSize="13" Foreground="#CBD5E1" HorizontalAlignment="Center" TextWrapping="Wrap"/>

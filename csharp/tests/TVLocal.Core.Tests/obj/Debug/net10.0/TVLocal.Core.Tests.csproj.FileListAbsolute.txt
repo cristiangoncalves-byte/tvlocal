@@ -98,3 +98,4 @@ C:\Meus Projetos\TV Local\csharp\tests\TVLocal.Core.Tests\obj\Debug\net10.0\refi
 C:\Meus Projetos\TV Local\csharp\tests\TVLocal.Core.Tests\obj\Debug\net10.0\TVLocal.Core.Tests.pdb
 C:\Meus Projetos\TV Local\csharp\tests\TVLocal.Core.Tests\obj\Debug\net10.0\TVLocal.Core.Tests.genruntimeconfig.cache
 C:\Meus Projetos\TV Local\csharp\tests\TVLocal.Core.Tests\obj\Debug\net10.0\ref\TVLocal.Core.Tests.dll
+c:\Meus Projetos\TV Local\csharp\tests\TVLocal.Core.Tests\obj\Debug\net10.0\TVLocal.Core.Tests.sourcelink.json

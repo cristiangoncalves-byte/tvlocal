@@ -12,3 +12,4 @@ C:\Meus Projetos\TV Local\csharp\src\TVLocal.Core\obj\Debug\net10.0\ref\TVLocal.
 C:\Meus Projetos\TV Local\csharp\obj\VerifyBuild\TVLocal.Core.deps.json
 C:\Meus Projetos\TV Local\csharp\obj\VerifyBuild\TVLocal.Core.dll
 C:\Meus Projetos\TV Local\csharp\obj\VerifyBuild\TVLocal.Core.pdb
+c:\Meus Projetos\TV Local\csharp\src\TVLocal.Core\obj\Debug\net10.0\TVLocal.Core.sourcelink.json

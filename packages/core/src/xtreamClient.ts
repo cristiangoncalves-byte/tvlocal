@@ -1,8 +1,10 @@
 import type {
   Channel,
+  EpgProgram,
   Fetcher,
   SeriesDetails,
   SeriesEpisode,
+  VodDetails,
   XtreamAccountInfo,
   XtreamCredentials,
 } from './types.ts';
@@ -260,4 +262,158 @@ export async function fetchXtreamSeriesInfo(
     plot: data.info?.plot,
     seasons,
   };
+}
+
+export async function fetchXtreamVodInfo(
+  creds: XtreamCredentials,
+  vodId: string | number,
+  fetcher: Fetcher = fetch,
+): Promise<VodDetails | null> {
+  const data = await fetchJson<{
+    info?: {
+      name?: string;
+      movie_image?: string;
+      cover_big?: string;
+      backdrop_path?: string[] | string;
+      plot?: string;
+      description?: string;
+      genre?: string;
+      cast?: string;
+      actors?: string;
+      director?: string;
+      releasedate?: string;
+      release_date?: string;
+      duration?: string;
+      rating?: string | number;
+    };
+    movie_data?: {
+      name?: string;
+      container_extension?: string;
+    };
+  }>(buildApiUrl(creds, 'get_vod_info', { vod_id: String(vodId) }), fetcher);
+
+  if (!data.info) return null;
+  const bp = data.info.backdrop_path;
+  const backdrop = Array.isArray(bp) ? bp[0] : typeof bp === 'string' ? bp : undefined;
+
+  return {
+    title: data.movie_data?.name || data.info.name || '',
+    cover: data.info.movie_image || data.info.cover_big,
+    backdrop,
+    plot: data.info.plot || data.info.description,
+    genre: data.info.genre,
+    cast: data.info.cast || data.info.actors,
+    director: data.info.director,
+    releaseDate: data.info.releasedate || data.info.release_date,
+    duration: data.info.duration,
+    rating: data.info.rating !== undefined ? String(data.info.rating) : undefined,
+    containerExtension: data.movie_data?.container_extension,
+  };
+}
+
+export function tryInferXtreamFromPlaylistUrl(playlistUrl?: string): XtreamCredentials | null {
+  if (!playlistUrl) return null;
+  try {
+    const uri = new URL(playlistUrl.trim());
+    const user = uri.searchParams.get('username');
+    const pass = uri.searchParams.get('password');
+    if (!user || !pass) return null;
+    return {
+      serverUrl: `${uri.protocol}//${uri.host}`,
+      username: user,
+      password: pass,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function tryInferXtreamFromStreamUrl(
+  streamUrl?: string,
+): { creds: XtreamCredentials; streamId: string } | null {
+  if (!streamUrl) return null;
+  try {
+    const uri = new URL(streamUrl.trim());
+    const parts = uri.pathname.split('/').filter(Boolean);
+    if (parts.length < 3) return null;
+    const isTyped = ['live', 'movie', 'series'].includes(parts[0].toLowerCase());
+    if (isTyped && parts.length < 4) return null;
+    const idx = isTyped ? 1 : 0;
+    const username = decodeURIComponent(parts[idx]);
+    const password = decodeURIComponent(parts[idx + 1]);
+    const rawId = parts[idx + 2].split('.')[0];
+    if (!username || !password || !/^\d+$/.test(rawId)) return null;
+    return {
+      creds: { serverUrl: `${uri.protocol}//${uri.host}`, username, password },
+      streamId: rawId,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function decodeBase64OrPlain(raw?: string): string {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  if (trimmed.length % 4 !== 0 || trimmed.includes(' ')) return trimmed;
+  try {
+    const binary = atob(trimmed);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const decoded = new TextDecoder('utf-8', { fatal: false }).decode(bytes).trim();
+    if (/[\x00-\x08\x0E-\x1F]/.test(decoded)) return trimmed;
+    return decoded;
+  } catch {
+    return trimmed;
+  }
+}
+
+export async function fetchXtreamShortEpg(
+  creds: XtreamCredentials,
+  streamId: string | number,
+  channelKey: string,
+  limit = 12,
+  fetcher: Fetcher = fetch,
+): Promise<EpgProgram[]> {
+  const data = await fetchJson<{
+    epg_listings?: Array<{
+      title?: string;
+      description?: string;
+      start_timestamp?: string | number;
+      stop_timestamp?: string | number;
+      start?: string;
+      end?: string;
+    }>;
+  }>(
+    buildApiUrl(creds, 'get_short_epg', {
+      stream_id: String(streamId),
+      limit: String(limit),
+    }),
+    fetcher,
+  );
+
+  if (!Array.isArray(data.epg_listings)) return [];
+  const programs: EpgProgram[] = [];
+
+  for (const item of data.epg_listings) {
+    const title = decodeBase64OrPlain(item.title);
+    if (!title) continue;
+
+    const startTs = item.start_timestamp ? Number(item.start_timestamp) * 1000 : Date.parse(item.start ?? '');
+    const stopTs = item.stop_timestamp ? Number(item.stop_timestamp) * 1000 : Date.parse(item.end ?? '');
+    if (!Number.isFinite(startTs) || !Number.isFinite(stopTs) || startTs <= 0 || stopTs <= 0) continue;
+
+    programs.push({
+      channelId: channelKey,
+      title,
+      description: decodeBase64OrPlain(item.description) || undefined,
+      start: startTs,
+      stop: stopTs,
+    });
+  }
+
+  programs.sort((a, b) => a.start - b.start);
+  return programs;
 }

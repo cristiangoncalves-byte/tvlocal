@@ -1,28 +1,57 @@
-import { useEffect, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import Hls from 'hls.js';
 import {
+  ChevronDown,
+  ChevronUp,
+  Columns2,
+  Expand,
   Maximize,
+  Minimize2,
   Pause,
   PictureInPicture2,
   Play,
   RefreshCw,
+  RotateCcw,
+  RotateCw,
   ShieldCheck,
+  Shrink,
   Star,
+  Tv,
   Volume2,
   VolumeX,
-  ChevronUp,
-  ChevronDown,
-  Tv,
 } from 'lucide-react';
 import { getNowAndNextPrograms, type Channel, type EpgMap } from '@tv-local/core';
 import { hasLocalProxy, isDesktopApp, toProxiedUrl } from '../utils/network';
+
+export type WebPlayerSizeMode = 'normal' | 'large' | 'expanded';
+export type WebVideoFit = 'contain' | 'cover';
+
+export interface VideoPlayerHandle {
+  getCurrentTime: () => number;
+  pause: () => void;
+  seekAndPlay: (seconds: number) => void;
+  setPendingSeek: (seconds: number) => void;
+}
 
 interface VideoPlayerProps {
   channel: Channel | null;
   epg: EpgMap;
   isFavorite: boolean;
+  externalPaused?: boolean;
+  playerSizeMode: WebPlayerSizeMode;
+  videoContentFit: WebVideoFit;
+  forceLandscapeFullscreen: boolean;
   onToggleFavorite: (channelId: string) => void;
   onZap?: (direction: 'prev' | 'next') => void;
+  onCyclePlayerSize: () => void;
+  onToggleVideoFit: () => void;
+  onOpenMultiStream: () => void;
 }
 
 interface QualityOption {
@@ -30,25 +59,62 @@ interface QualityOption {
   label: string;
 }
 
+const SPEEDS = [1.0, 1.25, 1.5, 2.0, 0.75];
+
 function isLikelyDirectFile(url: string): boolean {
   const clean = url.split('?')[0].toLowerCase();
   return ['.mp4', '.webm', '.mov', '.m4v', '.mkv'].some((ext) => clean.endsWith(ext));
 }
 
-export function VideoPlayer({
-  channel,
-  epg,
-  isFavorite,
-  onToggleFavorite,
-  onZap,
-}: VideoPlayerProps) {
+async function lockLandscapeIfSupported(): Promise<void> {
+  try {
+    const orientation = (screen as Screen & {
+      orientation?: { lock?: (mode: string) => Promise<void> };
+    }).orientation;
+    await orientation?.lock?.('landscape');
+  } catch {
+    // Ignore when browser/OS disallows programmatic lock
+  }
+}
+
+function unlockOrientationIfSupported(): void {
+  try {
+    const orientation = (screen as Screen & {
+      orientation?: { unlock?: () => void };
+    }).orientation;
+    orientation?.unlock?.();
+  } catch {
+    // Ignore
+  }
+}
+
+export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function VideoPlayer(
+  {
+    channel,
+    epg,
+    isFavorite,
+    externalPaused = false,
+    playerSizeMode,
+    videoContentFit,
+    forceLandscapeFullscreen,
+    onToggleFavorite,
+    onZap,
+    onCyclePlayerSize,
+    onToggleVideoFit,
+    onOpenMultiStream,
+  },
+  ref,
+) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const externalPausedRef = useRef(externalPaused);
+  const pendingSeekRef = useRef(0);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(0.9);
+  const [speedIndex, setSpeedIndex] = useState(0);
   const [useProxy, setUseProxy] = useState(() => isDesktopApp());
   const [reloadNonce, setReloadNonce] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -56,13 +122,52 @@ export function VideoPlayer({
   const [qualities, setQualities] = useState<QualityOption[]>([]);
   const [selectedQuality, setSelectedQuality] = useState<number>(-1);
 
+  useEffect(() => {
+    externalPausedRef.current = externalPaused;
+    if (externalPaused) {
+      videoRef.current?.pause();
+    }
+  }, [externalPaused]);
+
+  useImperativeHandle(ref, () => ({
+    getCurrentTime: () => videoRef.current?.currentTime ?? 0,
+    pause: () => {
+      videoRef.current?.pause();
+    },
+    setPendingSeek: (seconds: number) => {
+      pendingSeekRef.current = Math.max(0, seconds);
+    },
+    seekAndPlay: (seconds: number) => {
+      const video = videoRef.current;
+      if (!video) return;
+      if (seconds > 0 && channel?.kind !== 'live') {
+        try {
+          if (video.readyState >= 1) {
+            video.currentTime = seconds;
+          } else {
+            pendingSeekRef.current = seconds;
+          }
+        } catch {
+          pendingSeekRef.current = seconds;
+        }
+      }
+      if (!externalPausedRef.current) {
+        video.play().catch(() => undefined);
+      }
+    },
+  }));
+
   const nowAndNext = channel ? getNowAndNextPrograms(epg, channel) : { upcoming: [] };
 
   useEffect(() => {
     setErrorMsg(null);
     setQualities([]);
     setSelectedQuality(-1);
+    setSpeedIndex(0);
     setUseProxy(isDesktopApp());
+    if (videoRef.current) {
+      videoRef.current.playbackRate = 1.0;
+    }
   }, [channel?.id]);
 
   useEffect(() => {
@@ -79,10 +184,29 @@ export function VideoPlayer({
       hlsRef.current = null;
     }
 
+    const applyPendingSeek = () => {
+      if (pendingSeekRef.current > 0 && channel.kind !== 'live') {
+        const target = pendingSeekRef.current;
+        pendingSeekRef.current = 0;
+        try {
+          video.currentTime = target;
+        } catch {
+          // Ignore invalid seek
+        }
+      }
+    };
+
     const startDirectVideo = () => {
       video.src = targetUrl;
-      video.play().catch(() => undefined);
+      if (!externalPausedRef.current) {
+        video.play().catch(() => undefined);
+      }
     };
+
+    const onLoadedMetadata = () => {
+      applyPendingSeek();
+    };
+    video.addEventListener('loadedmetadata', onLoadedMetadata);
 
     if (!isLikelyDirectFile(channel.url) && Hls.isSupported()) {
       const hls = new Hls({
@@ -102,7 +226,10 @@ export function VideoPlayer({
           label: lvl.height ? `${lvl.height}p` : `${Math.round(lvl.bitrate / 1000)} kbps`,
         }));
         setQualities(levels);
-        video.play().catch(() => undefined);
+        applyPendingSeek();
+        if (!externalPausedRef.current) {
+          video.play().catch(() => undefined);
+        }
       });
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -128,6 +255,7 @@ export function VideoPlayer({
 
     return () => {
       cancelled = true;
+      video.removeEventListener('loadedmetadata', onLoadedMetadata);
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
@@ -145,9 +273,20 @@ export function VideoPlayer({
   }, [volume, isMuted]);
 
   useEffect(() => {
+    const onFsChange = () => {
+      if (!document.fullscreenElement) {
+        unlockOrientationIfSupported();
+      }
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (externalPausedRef.current) return;
 
       if (e.key === ' ' || e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -161,8 +300,13 @@ export function VideoPlayer({
       } else if (e.key.toLowerCase() === 'f') {
         if (document.fullscreenElement) {
           document.exitFullscreen().catch(() => undefined);
+          unlockOrientationIfSupported();
         } else {
-          containerRef.current?.requestFullscreen().catch(() => undefined);
+          containerRef.current?.requestFullscreen().then(() => {
+            if (forceLandscapeFullscreen) {
+              void lockLandscapeIfSupported();
+            }
+          }).catch(() => undefined);
         }
       } else if (e.key === 'ArrowUp' && onZap) {
         e.preventDefault();
@@ -175,7 +319,7 @@ export function VideoPlayer({
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onZap]);
+  }, [onZap, forceLandscapeFullscreen]);
 
   const togglePlay = () => {
     const video = videoRef.current;
@@ -191,11 +335,23 @@ export function VideoPlayer({
     }
   };
 
-  const toggleFullscreen = () => {
+  const handleCycleSpeed = () => {
+    const next = (speedIndex + 1) % SPEEDS.length;
+    setSpeedIndex(next);
+    if (videoRef.current) {
+      videoRef.current.playbackRate = SPEEDS[next];
+    }
+  };
+
+  const toggleFullscreen = async () => {
     if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => undefined);
-    } else {
-      containerRef.current?.requestFullscreen().catch(() => undefined);
+      await document.exitFullscreen().catch(() => undefined);
+      unlockOrientationIfSupported();
+    } else if (containerRef.current?.requestFullscreen) {
+      await containerRef.current.requestFullscreen().catch(() => undefined);
+      if (forceLandscapeFullscreen) {
+        await lockLandscapeIfSupported();
+      }
     }
   };
 
@@ -221,12 +377,20 @@ export function VideoPlayer({
     );
   }
 
+  const sizeLabel =
+    playerSizeMode === 'normal'
+      ? 'Aumentar Tela'
+      : playerSizeMode === 'large'
+        ? 'Expandir (Teatro)'
+        : 'Reduzir Tela';
+
   return (
-    <div className="player-shell" ref={containerRef}>
+    <div className={`player-shell size-${playerSizeMode}`} ref={containerRef}>
       <div className="player-stage">
         <video
           ref={videoRef}
           className="player-video"
+          style={{ objectFit: videoContentFit }}
           playsInline
           controls={channel.kind !== 'live'}
           onPlay={() => {
@@ -280,13 +444,13 @@ export function VideoPlayer({
           ) : (
             <div className="player-logo-fallback">{channel.name.slice(0, 2).toUpperCase()}</div>
           )}
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div className="player-title-row">
               <strong>{channel.name}</strong>
               {channel.kind === 'live' && <span className="badge-live">AO VIVO</span>}
               <span className="badge-group">{channel.group}</span>
             </div>
-            <div className="player-epg-line">
+            <div className="player-epg-line truncate">
               {nowAndNext.current ? (
                 <span>
                   Agora: <strong>{nowAndNext.current.title}</strong>
@@ -303,6 +467,43 @@ export function VideoPlayer({
           <button type="button" className="icon-btn" title="Play / Pausar (Espaço)" onClick={togglePlay}>
             {isPlaying ? <Pause size={18} /> : <Play size={18} />}
           </button>
+
+          {channel.kind !== 'live' && (
+            <>
+              <button
+                type="button"
+                className="icon-btn text-pill"
+                title="Voltar 10s"
+                onClick={() => {
+                  if (videoRef.current) {
+                    videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
+                  }
+                }}
+              >
+                <RotateCcw size={14} /> -10s
+              </button>
+              <button
+                type="button"
+                className="icon-btn text-pill"
+                title="Avançar 10s"
+                onClick={() => {
+                  if (videoRef.current) {
+                    videoRef.current.currentTime = videoRef.current.currentTime + 10;
+                  }
+                }}
+              >
+                +10s <RotateCw size={14} />
+              </button>
+              <button
+                type="button"
+                className="icon-btn text-pill"
+                title="Velocidade de reprodução"
+                onClick={handleCycleSpeed}
+              >
+                {SPEEDS[speedIndex]}x
+              </button>
+            </>
+          )}
 
           {onZap && (
             <>
@@ -368,6 +569,35 @@ export function VideoPlayer({
             <Star size={18} fill={isFavorite ? 'currentColor' : 'none'} />
           </button>
 
+          <button
+            type="button"
+            className="icon-btn text-pill"
+            title="Abrir Multi-Tela (2 ou 4 telas)"
+            onClick={onOpenMultiStream}
+          >
+            <Columns2 size={16} /> Multi-Tela
+          </button>
+
+          <button
+            type="button"
+            className={`icon-btn text-pill ${playerSizeMode !== 'normal' ? 'active' : ''}`}
+            title={sizeLabel}
+            onClick={onCyclePlayerSize}
+          >
+            {playerSizeMode === 'expanded' ? <Minimize2 size={15} /> : <Expand size={15} />}
+            {playerSizeMode === 'normal' ? 'Aumentar' : playerSizeMode === 'large' ? 'Expandir' : 'Reduzir'}
+          </button>
+
+          <button
+            type="button"
+            className={`icon-btn text-pill ${videoContentFit === 'cover' ? 'active' : ''}`}
+            title={videoContentFit === 'cover' ? 'Ajustar imagem original' : 'Preencher tela'}
+            onClick={onToggleVideoFit}
+          >
+            <Shrink size={15} />
+            {videoContentFit === 'cover' ? 'Ajustar' : 'Preencher'}
+          </button>
+
           <button type="button" className="icon-btn" title="Picture-in-Picture" onClick={togglePiP}>
             <PictureInPicture2 size={18} />
           </button>
@@ -379,4 +609,4 @@ export function VideoPlayer({
       </div>
     </div>
   );
-}
+});

@@ -13,18 +13,27 @@
   "build": {
     "appId": "com.tvlocal.iptv",
     "productName": "TV Local",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "cristiangoncalves-byte",
+        "repo": "tvlocal"
+      }
+    ],
     "directories": {
       "output": "release"
     },
     "files": [
       "dist-electron/**/*",
+      "assets/**/*",
       {
         "from": "../web/dist",
         "to": "web-dist"
       }
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "assets/icon.ico"
     }
   },
   "devDependencies": {
@@ -32,5 +41,8 @@
     "electron": "^45.3.3",
     "electron-builder": "^26.0.12",
     "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
   }
 }

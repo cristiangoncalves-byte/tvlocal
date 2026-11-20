@@ -5,10 +5,12 @@
 
 <PageTitle>TV Local — C# Blazor IPTV</PageTitle>
 
-<div class="app-shell">
+<div class="app-shell @(_playerSizeMode == "expanded" && _activeChannel is not null ? "expanded-player" : "")" style="@ThemeInlineStyle">
+    @if (!(_playerSizeMode == "expanded" && _activeChannel is not null))
+    {
     <aside class="sidebar">
         <div class="brand">
-            <div class="brand-badge">C#</div>
+            <img src="images/tv-local-logo.png" alt="TV Local" class="brand-logo" />
             <div>
                 <h1>TV Local</h1>
                 <span>ASP.NET Core Blazor</span>
@@ -16,6 +18,8 @@
         </div>
 
         <button class="btn" @onclick='() => OpenModal("m3u_url")'>+ Adicionar Lista / EPG</button>
+        <button class="btn btn-secondary" @onclick="OpenMultiStreamAsync">⊞ Multi-Tela (2 / 4 Telas)</button>
+        <button class="btn btn-secondary" @onclick="OpenSettingsModal">⚙ Configurações e Cores</button>
 
         <div>
             <div class="section-label">Navegação</div>
@@ -57,6 +61,7 @@
             </div>
         }
     </aside>
+    }
 
     <main class="main-content">
         @if (!string.IsNullOrEmpty(_statusMessage))
@@ -83,9 +88,11 @@
         }
         else
         {
-            <div class="stage-grid">
-                <div id="blazor-player-box" class="player-shell">
-                    <video id="tvlocal-video" class="player-video" controls playsinline></video>
+            var hideEpgForLarge = _playerSizeMode != "normal";
+            var isExpanded = _playerSizeMode == "expanded" && _activeChannel is not null;
+            <div class="stage-grid @(hideEpgForLarge ? "stage-full" : "")">
+                <div id="blazor-player-box" class="player-shell size-@_playerSizeMode">
+                    <video id="tvlocal-video" class="player-video" style="object-fit: @_videoFit;" controls playsinline></video>
                     <div class="player-bar">
                         <div style="min-width:0; flex:1;">
                             <div style="font-weight:700;">@(_activeChannel?.Name ?? "Selecione um canal abaixo")</div>
@@ -99,7 +106,13 @@
                                 }
                             </div>
                         </div>
-                        <div style="display:flex; gap:8px;">
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            @if (_activeChannel is not null && _activeChannel.Kind != StreamKind.Live)
+                            {
+                                <button class="btn btn-secondary btn-sm" @onclick="() => SeekByAsync(-10)">-10s</button>
+                                <button class="btn btn-secondary btn-sm" @onclick="() => SeekByAsync(10)">+10s</button>
+                                <button class="btn btn-secondary btn-sm" @onclick="CycleSpeedAsync">@($"{BlazorSpeeds[_speedIndex]:0.##}x")</button>
+                            }
                             <button class="btn btn-secondary btn-sm" @onclick="ToggleProxyAsync">
                                 @(_useProxy ? "Proxy: ON" : "Proxy: OFF")
                             </button>
@@ -109,11 +122,20 @@
                                     @(Library.IsFavorite(_activeChannel.Id) ? "★ Favorito" : "☆ Favoritar")
                                 </button>
                             }
-                            <button class="btn btn-secondary btn-sm" @onclick="ToggleFullscreenAsync">Tela Cheia</button>
+                            <button class="btn btn-secondary btn-sm" @onclick="OpenMultiStreamAsync">⊞ Multi-Tela</button>
+                            <button class="btn btn-secondary btn-sm" @onclick="CyclePlayerSize">
+                                @(_playerSizeMode == "normal" ? "⤢ Aumentar" : _playerSizeMode == "large" ? "⤢ Expandir" : "⤡ Reduzir")
+                            </button>
+                            <button class="btn btn-secondary btn-sm" @onclick="ToggleVideoFit">
+                                @(_videoFit == "cover" ? "⬌ Ajustar" : "⬌ Preencher")
+                            </button>
+                            <button class="btn btn-secondary btn-sm" @onclick="ToggleFullscreenAsync">⛶ Tela Cheia</button>
                         </div>
                     </div>
                 </div>
 
+                @if (!hideEpgForLarge)
+                {
                 <aside class="epg-panel">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <strong>Guia de Programação (EPG)</strong>
@@ -146,8 +168,11 @@
                         }
                     }
                 </aside>
+                }
             </div>
 
+            @if (!isExpanded)
+            {
             <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
                 <input class="search-input" placeholder="Buscar canal, filme, série ou categoria..."
                        @bind="_searchQuery" @bind:event="oninput" />
@@ -187,6 +212,7 @@
                     </div>
                 }
             </div>
+            }
         }
     </main>
 </div>
@@ -252,6 +278,137 @@
     </div>
 }
 
+@if (_settingsOpen)
+{
+    <div class="modal-backdrop" @onclick="() => _settingsOpen = false">
+        <div class="modal-card" style="max-width:620px;" @onclick:stopPropagation="true">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0;">Configurações — TV Local</h3>
+                <button class="btn btn-secondary btn-sm" @onclick="() => _settingsOpen = false">Fechar</button>
+            </div>
+
+            <div class="tabs-row">
+                <button class="tab-pill @(_settingsTab == "accounts" ? "active" : "")" @onclick='() => _settingsTab = "accounts"'>Contas e Listas Salvas</button>
+                <button class="tab-pill @(_settingsTab == "player" ? "active" : "")" @onclick='() => _settingsTab = "player"'>Player &amp; Tela</button>
+                <button class="tab-pill @(_settingsTab == "theme" ? "active" : "")" @onclick='() => _settingsTab = "theme"'>Aparência e Cores</button>
+            </div>
+
+            @if (!string.IsNullOrEmpty(_settingsStatus))
+            {
+                <div class="source-item" style="border: 1px solid rgba(59,130,246,0.4);">@_settingsStatus</div>
+            }
+
+            @if (_settingsTab == "accounts")
+            {
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn btn-sm" @onclick='() => { _settingsOpen = false; OpenModal("m3u_url"); }'>+ Nova Lista / Conta</button>
+                </div>
+
+                @if (Library.Sources.Count == 0)
+                {
+                    <p class="muted">Nenhuma conta ou lista salva ainda.</p>
+                }
+                else
+                {
+                    @foreach (var src in Library.Sources)
+                    {
+                        <div class="source-item">
+                            <div style="min-width:0; flex:1;">
+                                <div><strong>@src.Name</strong> <span class="muted">(@src.Type)</span></div>
+                                <div class="muted truncate">@(src.Xtream is not null ? $"{src.Xtream.ServerUrl} • {src.Xtream.Username}" : (src.Url ?? "Lista local / Demo"))</div>
+                                <div class="muted">@src.ChannelCount itens</div>
+                            </div>
+                            <div style="display:flex; gap:6px;">
+                                <button class="btn btn-secondary btn-sm" disabled="@_isBusy" @onclick="() => StartEditSource(src)">✏ Editar</button>
+                                <button class="btn btn-secondary btn-sm" disabled="@_isBusy" @onclick="() => RefreshSavedSourceAsync(src.Id)">🔄 Atualizar</button>
+                                <button class="btn btn-secondary btn-sm" @onclick="() => RemoveSourceAsync(src.Id)">Remover</button>
+                            </div>
+                        </div>
+                    }
+
+                    @if (_editingSource is not null)
+                    {
+                        <div class="source-item" style="flex-direction:column; align-items:stretch; gap:8px; border:1px solid var(--accent);">
+                            <strong>Editar: @_editingSource.Name</strong>
+                            <input class="input" placeholder="Nome da conta" @bind="_editName" />
+                            @if (_editingSource.Type == PlaylistSourceType.Xtream)
+                            {
+                                <input class="input" placeholder="Servidor" @bind="_editServer" />
+                                <input class="input" placeholder="Usuário" @bind="_editUser" />
+                                <input class="input" placeholder="Senha" @bind="_editPass" />
+                            }
+                            else if (_editingSource.Type == PlaylistSourceType.M3uUrl)
+                            {
+                                <input class="input" placeholder="URL M3U" @bind="_editUrl" />
+                            }
+                            <label class="muted"><input type="checkbox" @bind="_editReload" /> Recarregar canais ao salvar</label>
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn btn-sm" disabled="@_isBusy" @onclick="SaveEditedSourceAsync">Salvar Alterações</button>
+                                <button class="btn btn-secondary btn-sm" @onclick="() => _editingSource = null">Cancelar</button>
+                            </div>
+                        </div>
+                    }
+                }
+            }
+            else if (_settingsTab == "player")
+            {
+                <div class="source-item">
+                    <div style="min-width:0; flex:1;">
+                        <div><strong>Forçar horizontal na Tela Cheia (Celular)</strong></div>
+                        <div class="muted">Ao abrir tela cheia em navegador mobile, tenta girar para paisagem ignorando a trava.</div>
+                    </div>
+                    <input type="checkbox" @bind="_forceLandscapeFullscreen" style="width:18px;height:18px;" />
+                </div>
+
+                <div class="section-label">Tamanho da Tela de Transmissão</div>
+                <div class="tabs-row">
+                    <button class="tab-pill @(_playerSizeMode == "normal" ? "active" : "")" @onclick='() => _playerSizeMode = "normal"'>Normal</button>
+                    <button class="tab-pill @(_playerSizeMode == "large" ? "active" : "")" @onclick='() => _playerSizeMode = "large"'>Grande</button>
+                    <button class="tab-pill @(_playerSizeMode == "expanded" ? "active" : "")" @onclick='() => _playerSizeMode = "expanded"'>Expandida (Teatro)</button>
+                </div>
+
+                <div class="section-label">Ajuste da Imagem</div>
+                <div class="tabs-row">
+                    <button class="tab-pill @(_videoFit == "contain" ? "active" : "")" @onclick='() => _videoFit = "contain"'>Ajustar (Original)</button>
+                    <button class="tab-pill @(_videoFit == "cover" ? "active" : "")" @onclick='() => _videoFit = "cover"'>Preencher Tela</button>
+                </div>
+            }
+            else
+            {
+                <div class="section-label">Temas Prontos</div>
+                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap:8px;">
+                    @foreach (var preset in BlazorThemePresets)
+                    {
+                        <button class="btn btn-secondary btn-sm" style="text-align:left; padding:10px;"
+                                @onclick="() => ApplyBlazorThemeAsync(preset)">
+                            <div style="display:flex; gap:4px; margin-bottom:6px;">
+                                <span style="width:14px;height:14px;border-radius:3px;background:@preset.BackgroundHex;display:inline-block;"></span>
+                                <span style="width:14px;height:14px;border-radius:3px;background:@preset.SurfaceHex;display:inline-block;"></span>
+                                <span style="width:14px;height:14px;border-radius:3px;background:@preset.CardHex;display:inline-block;"></span>
+                                <span style="width:14px;height:14px;border-radius:3px;background:@preset.AccentHex;display:inline-block;"></span>
+                            </div>
+                            @preset.PresetName
+                        </button>
+                    }
+                </div>
+
+                <div class="section-label" style="margin-top:8px;">Cores Personalizadas</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <label class="muted">Fundo Principal <input type="color" @bind="_themeBg" class="input" style="height:38px;padding:4px;" /></label>
+                    <label class="muted">Painéis <input type="color" @bind="_themeSurface" class="input" style="height:38px;padding:4px;" /></label>
+                    <label class="muted">Cards <input type="color" @bind="_themeCard" class="input" style="height:38px;padding:4px;" /></label>
+                    <label class="muted">Cor de Destaque <input type="color" @bind="_themeAccent" class="input" style="height:38px;padding:4px;" /></label>
+                </div>
+
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                    <button class="btn" @onclick="ApplyCustomBlazorThemeAsync">Aplicar e Salvar Cor</button>
+                    <button class="btn btn-secondary" @onclick="ResetBlazorThemeAsync">Restaurar Cor Padrão</button>
+                </div>
+            }
+        </div>
+    </div>
+}
+
 @if (_activeSeries is not null)
 {
     <div class="modal-backdrop" @onclick="() => _activeSeries = null">
@@ -288,6 +445,72 @@
     </div>
 }
 
+@if (_multiOpen)
+{
+    <div class="modal-backdrop">
+        <div id="blazor-multi-box" class="multi-modal" @onclick:stopPropagation="true">
+            <div class="multi-header">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <strong>Multi-Tela</strong>
+                    <div class="tabs-row">
+                        <button class="tab-pill @(_multiLayout == "2x1" ? "active" : "")" @onclick='() => SetMultiLayoutAsync("2x1")'>2 Telas</button>
+                        <button class="tab-pill @(_multiLayout == "2x2" ? "active" : "")" @onclick='() => SetMultiLayoutAsync("2x2")'>4 Telas</button>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn btn-secondary btn-sm" @onclick="() => _multiShowPicker = !_multiShowPicker">
+                        @(_multiShowPicker ? "⤢ Ampliar Telas" : "☰ Mostrar Lista")
+                    </button>
+                    <button class="btn btn-secondary btn-sm" @onclick="ToggleMultiFullscreenAsync">⛶ Tela Cheia</button>
+                    <button class="btn btn-sm" @onclick="CloseMultiStreamAsync">Voltar ao Player</button>
+                </div>
+            </div>
+
+            <div class="multi-body @(_multiShowPicker ? "with-picker" : "")">
+                <div class="multi-grid @(_multiLayout == "2x2" ? "grid-2x2" : "grid-2x1")">
+                    @for (var i = 0; i < MultiVisibleCount; i++)
+                    {
+                        var slotIdx = i;
+                        var slot = _multiSlots[slotIdx];
+                        <div class="multi-slot @(_multiTargetSlot == slotIdx ? "selected" : "")" @onclick="() => _multiTargetSlot = slotIdx">
+                            <div class="multi-slot-bar" @onclick:stopPropagation="true">
+                                <button class="nav-btn" style="padding:2px 6px; flex:1;" @onclick="() => _multiTargetSlot = slotIdx">
+                                    <span class="truncate">@(slotIdx + 1): @(slot.Channel?.Name ?? "Slot vazio")</span>
+                                </button>
+                                @if (slot.Channel is not null)
+                                {
+                                    <button class="btn btn-secondary btn-sm" @onclick="() => ToggleSlotPlayAsync(slotIdx)">@(slot.Playing ? "⏸" : "▶")</button>
+                                    <button class="btn btn-secondary btn-sm" @onclick="() => ToggleSlotMuteAsync(slotIdx)">@(slot.Muted ? "🔇" : "🔊")</button>
+                                    <button class="btn btn-secondary btn-sm" @onclick="() => SoloSlotAsync(slotIdx)">🎧</button>
+                                    <button class="btn btn-secondary btn-sm" @onclick="() => ClearSlotAsync(slotIdx)">✕</button>
+                                }
+                            </div>
+                            <video id="@($"tvlocal-multi-{slotIdx}")" class="multi-slot-video" playsinline muted="@slot.Muted"></video>
+                        </div>
+                    }
+                </div>
+
+                @if (_multiShowPicker)
+                {
+                    <aside class="multi-picker">
+                        <div class="muted" style="color:#93c5fd;">Enviando para: <strong>Tela @(_multiTargetSlot + 1)</strong></div>
+                        <input class="input" placeholder="Buscar canal, filme ou série..." @bind="_multiSearch" @bind:event="oninput" />
+                        <div class="multi-picker-list">
+                            @foreach (var ch in MultiPlayableChannels)
+                            {
+                                <button class="multi-picker-row" @onclick="() => AssignChannelToTargetSlotAsync(ch)">
+                                    <div class="truncate"><strong>@ch.Name</strong></div>
+                                    <div class="muted truncate">@ch.Group</div>
+                                </button>
+                            }
+                        </div>
+                    </aside>
+                }
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private static readonly (string Id, string Label)[] NavItems =
     [
@@ -304,6 +527,32 @@
     private Channel? _activeChannel;
     private bool _useProxy;
     private string? _statusMessage;
+    private string _playerSizeMode = "normal";
+    private string _videoFit = "contain";
+    private bool _forceLandscapeFullscreen = true;
+    private int _speedIndex;
+    private static readonly double[] BlazorSpeeds = [1.0, 1.25, 1.5, 2.0, 0.75];
+
+    private sealed class BlazorMultiSlot
+    {
+        public Channel? Channel { get; set; }
+        public bool Muted { get; set; }
+        public bool Playing { get; set; }
+    }
+
+    private bool _multiOpen;
+    private string _multiLayout = "2x1";
+    private bool _multiShowPicker = true;
+    private int _multiTargetSlot;
+    private string _multiSearch = string.Empty;
+    private readonly BlazorMultiSlot[] _multiSlots =
+    [
+        new() { Muted = false },
+        new() { Muted = true },
+        new() { Muted = true },
+        new() { Muted = true },
+    ];
+    private int MultiVisibleCount => _multiLayout == "2x2" ? 4 : 2;
 
     private bool _modalOpen;
     private string _modalTab = "m3u_url";
@@ -321,6 +570,119 @@
     private Channel? _activeSeries;
     private SeriesDetails? _seriesDetails;
     private int _selectedSeason = 1;
+
+    private bool _settingsOpen;
+    private string _settingsTab = "accounts";
+    private string? _settingsStatus;
+    private string _themeBg = "#080C14";
+    private string _themeSurface = "#0F1624";
+    private string _themeCard = "#151E30";
+    private string _themeAccent = "#3B82F6";
+
+    private static readonly AppThemeSettings[] BlazorThemePresets =
+    [
+        AppThemeSettings.Default,
+        new("Esmeralda", "#07110E", "#0C1C17", "#122922", "#10B981"),
+        new("Roxo", "#0C0916", "#140F24", "#1D1635", "#8B5CF6"),
+        new("Rubi", "#12080B", "#1C0E13", "#29151C", "#EF4444"),
+        new("Dourado", "#110D07", "#1B150C", "#281F12", "#F59E0B"),
+        new("Grafite", "#0C0D10", "#14161B", "#1D2028", "#06B6D4"),
+    ];
+
+    private string ThemeInlineStyle =>
+        $"--bg: {Library.Theme.BackgroundHex}; --bg-elevated: {Library.Theme.SurfaceHex}; --bg-card: {Library.Theme.CardHex}; --accent: {Library.Theme.AccentHex}; --accent-hover: {Library.Theme.AccentHex};";
+
+    private void OpenSettingsModal()
+    {
+        _settingsStatus = null;
+        _themeBg = Library.Theme.BackgroundHex;
+        _themeSurface = Library.Theme.SurfaceHex;
+        _themeCard = Library.Theme.CardHex;
+        _themeAccent = Library.Theme.AccentHex;
+        _settingsOpen = true;
+    }
+
+    private async Task ApplyBlazorThemeAsync(AppThemeSettings theme)
+    {
+        await Library.UpdateThemeAsync(theme);
+        _themeBg = theme.BackgroundHex;
+        _themeSurface = theme.SurfaceHex;
+        _themeCard = theme.CardHex;
+        _themeAccent = theme.AccentHex;
+        _settingsStatus = $"Tema \"{theme.PresetName}\" salvo!";
+    }
+
+    private Task ApplyCustomBlazorThemeAsync() =>
+        ApplyBlazorThemeAsync(new AppThemeSettings("Personalizado", _themeBg, _themeSurface, _themeCard, _themeAccent));
+
+    private Task ResetBlazorThemeAsync() => ApplyBlazorThemeAsync(AppThemeSettings.Default);
+
+    private async Task RefreshSavedSourceAsync(string sourceId)
+    {
+        _isBusy = true;
+        _settingsStatus = "Atualizando fonte...";
+        try
+        {
+            var updated = await Library.RefreshSourceAsync(sourceId);
+            _settingsStatus = $"\"{updated.Name}\" atualizado ({updated.ChannelCount} itens).";
+        }
+        catch (Exception ex)
+        {
+            _settingsStatus = $"Erro ao atualizar: {ex.Message}";
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private PlaylistSource? _editingSource;
+    private string _editName = string.Empty;
+    private string _editUrl = string.Empty;
+    private string _editServer = string.Empty;
+    private string _editUser = string.Empty;
+    private string _editPass = string.Empty;
+    private bool _editReload = true;
+
+    private void StartEditSource(PlaylistSource src)
+    {
+        _editingSource = src;
+        _editName = src.Name;
+        _editUrl = src.Url ?? string.Empty;
+        _editServer = src.Xtream?.ServerUrl ?? string.Empty;
+        _editUser = src.Xtream?.Username ?? string.Empty;
+        _editPass = src.Xtream?.Password ?? string.Empty;
+        _editReload = src.Type is PlaylistSourceType.Xtream or PlaylistSourceType.M3uUrl;
+    }
+
+    private async Task SaveEditedSourceAsync()
+    {
+        if (_editingSource is null) return;
+        _isBusy = true;
+        _settingsStatus = "Salvando alterações...";
+        try
+        {
+            XtreamCredentials? xtream = _editingSource.Type == PlaylistSourceType.Xtream
+                ? new XtreamCredentials(_editServer, _editUser, _editPass)
+                : null;
+            var updated = await Library.UpdateSourceAsync(
+                _editingSource.Id,
+                _editName,
+                _editUrl,
+                xtream,
+                _editReload);
+            _settingsStatus = $"\"{updated.Name}\" salvo com sucesso!";
+            _editingSource = null;
+        }
+        catch (Exception ex)
+        {
+            _settingsStatus = $"Erro ao salvar: {ex.Message}";
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
 
     private List<Channel> SectionChannels => _section switch
     {
@@ -394,7 +756,182 @@
         await LoadDemoAsync();
     }
 
-    private async Task PlayChannelAsync(Channel channel)
+    private List<Channel> MultiPlayableChannels =>
+        Library.Channels
+            .Where(c => !string.IsNullOrWhiteSpace(c.Url))
+            .Where(c => string.IsNullOrWhiteSpace(_multiSearch) ||
+                        c.Name.Contains(_multiSearch.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                        c.Group.Contains(_multiSearch.Trim(), StringComparison.OrdinalIgnoreCase))
+            .Take(150)
+            .ToList();
+
+    private void CyclePlayerSize() => _playerSizeMode = _playerSizeMode switch
+    {
+        "normal" => "large",
+        "large" => "expanded",
+        _ => "normal",
+    };
+
+    private void ToggleVideoFit() => _videoFit = _videoFit == "contain" ? "cover" : "contain";
+
+    private Task SeekByAsync(double deltaSeconds) =>
+        JS.InvokeVoidAsync("tvLocalBlazorPlayer.seekBy", "tvlocal-video", deltaSeconds).AsTask();
+
+    private async Task CycleSpeedAsync()
+    {
+        _speedIndex = (_speedIndex + 1) % BlazorSpeeds.Length;
+        await JS.InvokeVoidAsync("tvLocalBlazorPlayer.setRate", "tvlocal-video", BlazorSpeeds[_speedIndex]);
+    }
+
+    private async Task OpenMultiStreamAsync()
+    {
+        double resumeSeconds = 0;
+        if (_activeChannel is not null && _activeChannel.Kind != StreamKind.Live)
+        {
+            resumeSeconds = await JS.InvokeAsync<double>("tvLocalBlazorPlayer.getTime", "tvlocal-video");
+        }
+        await JS.InvokeVoidAsync("tvLocalBlazorPlayer.pause", "tvlocal-video");
+
+        for (var i = 0; i < _multiSlots.Length; i++)
+        {
+            _multiSlots[i].Channel = null;
+            _multiSlots[i].Muted = i > 0;
+            _multiSlots[i].Playing = false;
+        }
+
+        if (_activeChannel is not null && !string.IsNullOrWhiteSpace(_activeChannel.Url))
+        {
+            _multiSlots[0].Channel = _activeChannel;
+            _multiSlots[0].Muted = false;
+            _multiSlots[0].Playing = true;
+            _multiTargetSlot = 1;
+        }
+        else
+        {
+            _multiTargetSlot = 0;
+        }
+
+        _multiOpen = true;
+        StateHasChanged();
+        await Task.Yield();
+
+        if (_multiSlots[0].Channel is not null)
+        {
+            await JS.InvokeVoidAsync(
+                "tvLocalBlazorPlayer.playSlot",
+                "tvlocal-multi-0",
+                _multiSlots[0].Channel!.Url,
+                _useProxy,
+                resumeSeconds,
+                false);
+        }
+    }
+
+    private async Task CloseMultiStreamAsync()
+    {
+        var chosenIdx = _multiSlots[0].Channel is not null
+            ? 0
+            : Array.FindIndex(_multiSlots, s => s.Channel is not null);
+
+        Channel? transferChannel = chosenIdx >= 0 ? _multiSlots[chosenIdx].Channel : null;
+        double transferTime = 0;
+        if (transferChannel is not null && transferChannel.Kind != StreamKind.Live)
+        {
+            transferTime = await JS.InvokeAsync<double>("tvLocalBlazorPlayer.getTime", $"tvlocal-multi-{chosenIdx}");
+        }
+
+        for (var i = 0; i < _multiSlots.Length; i++)
+        {
+            await JS.InvokeVoidAsync("tvLocalBlazorPlayer.stopSlot", $"tvlocal-multi-{i}");
+            _multiSlots[i].Channel = null;
+            _multiSlots[i].Playing = false;
+        }
+
+        _multiOpen = false;
+        StateHasChanged();
+
+        if (transferChannel is not null)
+        {
+            if (_activeChannel is not null &&
+                _activeChannel.Id == transferChannel.Id &&
+                _activeChannel.Url == transferChannel.Url)
+            {
+                await JS.InvokeVoidAsync("tvLocalBlazorPlayer.seekAndPlay", "tvlocal-video", transferTime);
+            }
+            else
+            {
+                await PlayChannelAsync(transferChannel, transferTime);
+            }
+        }
+    }
+
+    private async Task SetMultiLayoutAsync(string layout)
+    {
+        _multiLayout = layout;
+        if (layout == "2x1")
+        {
+            for (var i = 2; i < _multiSlots.Length; i++)
+            {
+                await JS.InvokeVoidAsync("tvLocalBlazorPlayer.stopSlot", $"tvlocal-multi-{i}");
+                _multiSlots[i].Channel = null;
+                _multiSlots[i].Playing = false;
+            }
+            if (_multiTargetSlot >= 2) _multiTargetSlot = 0;
+        }
+    }
+
+    private async Task AssignChannelToTargetSlotAsync(Channel ch)
+    {
+        var idx = Math.Clamp(_multiTargetSlot, 0, MultiVisibleCount - 1);
+        _multiSlots[idx].Channel = ch;
+        _multiSlots[idx].Playing = true;
+        StateHasChanged();
+        await Task.Yield();
+        await JS.InvokeVoidAsync("tvLocalBlazorPlayer.playSlot", $"tvlocal-multi-{idx}", ch.Url, _useProxy, 0, _multiSlots[idx].Muted);
+
+        var nextEmpty = -1;
+        for (var i = 0; i < MultiVisibleCount; i++)
+        {
+            if (i != idx && _multiSlots[i].Channel is null) { nextEmpty = i; break; }
+        }
+        _multiTargetSlot = nextEmpty != -1 ? nextEmpty : (idx + 1) % MultiVisibleCount;
+    }
+
+    private async Task ToggleSlotPlayAsync(int idx)
+    {
+        var playing = await JS.InvokeAsync<bool>("tvLocalBlazorPlayer.togglePlaySlot", $"tvlocal-multi-{idx}");
+        _multiSlots[idx].Playing = playing;
+    }
+
+    private async Task ToggleSlotMuteAsync(int idx)
+    {
+        _multiSlots[idx].Muted = !_multiSlots[idx].Muted;
+        await JS.InvokeVoidAsync("tvLocalBlazorPlayer.setSlotMuted", $"tvlocal-multi-{idx}", _multiSlots[idx].Muted);
+    }
+
+    private async Task SoloSlotAsync(int idx)
+    {
+        for (var i = 0; i < MultiVisibleCount; i++)
+        {
+            _multiSlots[i].Muted = i != idx;
+            await JS.InvokeVoidAsync("tvLocalBlazorPlayer.setSlotMuted", $"tvlocal-multi-{i}", _multiSlots[i].Muted);
+        }
+    }
+
+    private async Task ClearSlotAsync(int idx)
+    {
+        await JS.InvokeVoidAsync("tvLocalBlazorPlayer.stopSlot", $"tvlocal-multi-{idx}");
+        _multiSlots[idx].Channel = null;
+        _multiSlots[idx].Playing = false;
+        _multiTargetSlot = idx;
+    }
+
+    private Task ToggleMultiFullscreenAsync() =>
+        JS.InvokeVoidAsync("tvLocalBlazorPlayer.toggleFullscreen", "blazor-multi-box", _forceLandscapeFullscreen).AsTask();
+
+    private async Task PlayChannelAsync(Channel channel) => await PlayChannelAsync(channel, 0);
+
+    private async Task PlayChannelAsync(Channel channel, double startTimeSeconds)
     {
         if (channel.Kind == StreamKind.Series && string.IsNullOrEmpty(channel.Url))
         {
@@ -406,8 +943,9 @@
         }
 
         _activeChannel = channel;
+        _speedIndex = 0;
         await Library.RecordRecentAsync(channel.Id);
-        await JS.InvokeVoidAsync("tvLocalBlazorPlayer.play", "tvlocal-video", channel.Url, _useProxy);
+        await JS.InvokeVoidAsync("tvLocalBlazorPlayer.play", "tvlocal-video", channel.Url, _useProxy, startTimeSeconds);
     }
 
     private async Task PlayEpisodeAsync(SeriesEpisode ep)
@@ -430,12 +968,15 @@
         _useProxy = !_useProxy;
         if (_activeChannel is not null && !string.IsNullOrEmpty(_activeChannel.Url))
         {
-            await JS.InvokeVoidAsync("tvLocalBlazorPlayer.play", "tvlocal-video", _activeChannel.Url, _useProxy);
+            var cur = _activeChannel.Kind != StreamKind.Live
+                ? await JS.InvokeAsync<double>("tvLocalBlazorPlayer.getTime", "tvlocal-video")
+                : 0;
+            await JS.InvokeVoidAsync("tvLocalBlazorPlayer.play", "tvlocal-video", _activeChannel.Url, _useProxy, cur);
         }
     }
 
     private Task ToggleFullscreenAsync() =>
-        JS.InvokeVoidAsync("tvLocalBlazorPlayer.toggleFullscreen", "blazor-player-box").AsTask();
+        JS.InvokeVoidAsync("tvLocalBlazorPlayer.toggleFullscreen", "blazor-player-box", _forceLandscapeFullscreen).AsTask();
 
     private async Task ImportM3uUrlAsync()
     {

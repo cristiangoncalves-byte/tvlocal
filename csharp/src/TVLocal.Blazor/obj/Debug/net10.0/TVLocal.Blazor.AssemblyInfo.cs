@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TVLocal.Blazor")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7f80a5104e4a7b82c6121bc09d08fda66c299ea5")]
 [assembly: System.Reflection.AssemblyProductAttribute("TVLocal.Blazor")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TVLocal.Blazor")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

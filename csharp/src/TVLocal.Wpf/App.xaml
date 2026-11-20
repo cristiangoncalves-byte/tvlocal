@@ -10,12 +10,14 @@
         <SolidColorBrush x:Key="BorderBrushDark" Color="#1E293B"/>
         <SolidColorBrush x:Key="AccentBrush" Color="#3B82F6"/>
         <SolidColorBrush x:Key="AccentHoverBrush" Color="#2563EB"/>
+        <SolidColorBrush x:Key="AccentSoftBrush" Color="#2E3B82F6"/>
+        <SolidColorBrush x:Key="AccentTextBrush" Color="#93C5FD"/>
         <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F1F5F9"/>
         <SolidColorBrush x:Key="TextMutedBrush" Color="#94A3B8"/>
 
         <!-- Primary Rounded Button -->
         <Style x:Key="PrimaryButton" TargetType="Button">
-            <Setter Property="Background" Value="#3B82F6"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Foreground" Value="#FFFFFF"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="13"/>
@@ -31,10 +33,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#2563EB"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#1D4ED8"/>
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.88"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Bd" Property="Opacity" Value="0.5"/>
@@ -47,13 +49,13 @@
 
         <!-- Secondary Rounded Button -->
         <Style x:Key="SecondaryButton" TargetType="Button">
-            <Setter Property="Background" Value="#151E30"/>
+            <Setter Property="Background" Value="{DynamicResource CardBrush}"/>
             <Setter Property="Foreground" Value="#F1F5F9"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="12.5"/>
             <Setter Property="Padding" Value="11,7"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="BorderBrush" Value="#26334D"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushDark}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -67,10 +69,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#1D2940"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#243452"/>
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.88"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -110,10 +112,10 @@
 
         <!-- Modern Rounded TextBox with Placeholder (via Tag) -->
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#0F1624"/>
+            <Setter Property="Background" Value="{DynamicResource ElevatedBrush}"/>
             <Setter Property="Foreground" Value="#F1F5F9"/>
-            <Setter Property="CaretBrush" Value="#60A5FA"/>
-            <Setter Property="BorderBrush" Value="#26334D"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource AccentTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushDark}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontSize" Value="13.5"/>
             <Setter Property="Padding" Value="12,9"/>

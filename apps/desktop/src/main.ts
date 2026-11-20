@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import * as fs from 'node:fs/promises';
 import * as http from 'node:http';
 import * as path from 'node:path';
@@ -88,6 +89,7 @@ async function createMainWindow() {
     minHeight: 620,
     backgroundColor: '#080c14',
     title: 'TV Local — IPTV Player',
+    icon: path.resolve(__dirname, '../assets/icon.png'),
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -113,7 +115,63 @@ async function createMainWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdatesAndNotify().catch(() => undefined);
+  }
 }
+
+autoUpdater.autoDownload = true;
+autoUpdater.autoInstallOnAppQuit = true;
+
+autoUpdater.on('update-downloaded', async (info) => {
+  const res = await dialog.showMessageBox({
+    type: 'info',
+    buttons: ['Reiniciar e Atualizar', 'Mais tarde'],
+    defaultId: 0,
+    title: 'Atualização pronta — TV Local',
+    message: `A versão ${info.version} foi baixada.`,
+    detail: 'Deseja reiniciar o aplicativo agora para concluir a atualização?',
+  });
+  if (res.response === 0) {
+    autoUpdater.quitAndInstall();
+  }
+});
+
+ipcMain.handle('tv-local:get-version', () => app.getVersion());
+
+ipcMain.handle('tv-local:check-updates', async () => {
+  if (!app.isPackaged) {
+    return {
+      status: 'dev',
+      currentVersion: app.getVersion(),
+      message: 'Modo de desenvolvimento (empacote o app para usar auto-update nativo).',
+    };
+  }
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    const nextVersion = result?.updateInfo?.version;
+    if (nextVersion && nextVersion !== app.getVersion()) {
+      return {
+        status: 'available',
+        currentVersion: app.getVersion(),
+        latestVersion: nextVersion,
+        message: `Nova versão ${nextVersion} encontrada e sendo baixada em segundo plano.`,
+      };
+    }
+    return {
+      status: 'up-to-date',
+      currentVersion: app.getVersion(),
+      message: `Você já está na versão mais recente (v${app.getVersion()}).`,
+    };
+  } catch (err) {
+    return {
+      status: 'error',
+      currentVersion: app.getVersion(),
+      message: err instanceof Error ? err.message : 'Falha ao buscar atualizações.',
+    };
+  }
+});
 
 ipcMain.handle('tv-local:open-m3u', async () => {
   const result = await dialog.showOpenDialog({

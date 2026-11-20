@@ -1,9 +1,11 @@
 import {
   Clock,
+  Columns2,
   Film,
   Layers,
   Plus,
   RefreshCw,
+  Settings,
   Star,
   Trash2,
   Tv,
@@ -20,6 +22,8 @@ interface SidebarProps {
   onSelectCategory: (cat: string) => void;
   sources: PlaylistSource[];
   onOpenAddModal: () => void;
+  onOpenMultiStream: () => void;
+  onOpenSettings: () => void;
   onRefreshSource: (source: PlaylistSource) => void;
   onRemoveSource: (sourceId: string) => void;
   isLoading: boolean;
@@ -41,6 +45,8 @@ export function Sidebar({
   onSelectCategory,
   sources,
   onOpenAddModal,
+  onOpenMultiStream,
+  onOpenSettings,
   onRefreshSource,
   onRemoveSource,
   isLoading,
@@ -48,7 +54,7 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="brand-badge">TV</div>
+        <img src="./logo.png" alt="TV Local" className="brand-logo" />
         <div>
           <h1>TV Local</h1>
           <span>Player IPTV Multiplataforma</span>
@@ -57,6 +63,12 @@ export function Sidebar({
 
       <button type="button" className="btn btn-primary full-width" onClick={onOpenAddModal}>
         <Plus size={16} /> Adicionar Lista / EPG
+      </button>
+      <button type="button" className="btn btn-secondary full-width" onClick={onOpenMultiStream}>
+        <Columns2 size={15} /> Multi-Tela (2 / 4 Telas)
+      </button>
+      <button type="button" className="btn btn-secondary full-width" onClick={onOpenSettings}>
+        <Settings size={15} /> Configurações e Cores
       </button>
 
       <nav className="nav-section">

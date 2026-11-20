@@ -14,12 +14,37 @@ public partial class AddSourceWindow : Window
     {
         InitializeComponent();
         _library = library;
-        Tabs.SelectedIndex = initialTabIndex;
+        SwitchTab(initialTabIndex);
+    }
+
+    private void SwitchTab(int index)
+    {
+        PanelM3uUrl.Visibility = index == 0 ? Visibility.Visible : Visibility.Collapsed;
+        PanelM3uFile.Visibility = index == 1 ? Visibility.Visible : Visibility.Collapsed;
+        PanelXtream.Visibility = index == 2 ? Visibility.Visible : Visibility.Collapsed;
+        PanelEpg.Visibility = index == 3 ? Visibility.Visible : Visibility.Collapsed;
+        PanelDemo.Visibility = index == 4 ? Visibility.Visible : Visibility.Collapsed;
+
+        var primary = (Style)FindResource("PrimaryButton");
+        var secondary = (Style)FindResource("SecondaryButton");
+        TabM3uUrlBtn.Style = index == 0 ? primary : secondary;
+        TabM3uFileBtn.Style = index == 1 ? primary : secondary;
+        TabXtreamBtn.Style = index == 2 ? primary : secondary;
+        TabEpgBtn.Style = index == 3 ? primary : secondary;
+        TabDemoBtn.Style = index == 4 ? primary : secondary;
+    }
+
+    private void OnTabClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button btn && btn.Tag is string s && int.TryParse(s, out var idx))
+        {
+            SwitchTab(idx);
+        }
     }
 
     private void SetBusy(bool busy, string? message = null)
     {
-        Tabs.IsEnabled = !busy;
+        TabContentHost.IsEnabled = !busy;
         BusyBar.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
         StatusText.Foreground = busy
             ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(147, 197, 253))

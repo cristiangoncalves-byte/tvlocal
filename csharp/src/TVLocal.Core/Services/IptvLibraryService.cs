@@ -38,6 +38,7 @@ public sealed class IptvLibraryService
     public IReadOnlyList<string> Favorites => _snapshot.Favorites;
     public IReadOnlyList<string> Recents => _snapshot.Recents;
     public IReadOnlyDictionary<string, List<EpgProgram>> Epg => _snapshot.Epg;
+    public AppThemeSettings Theme => _snapshot.Theme ?? AppThemeSettings.Default;
 
     public async Task LoadAsync(CancellationToken ct = default)
     {
@@ -55,6 +56,7 @@ public sealed class IptvLibraryService
             {
                 _snapshot = loaded;
                 _snapshot.Epg ??= new Dictionary<string, List<EpgProgram>>(StringComparer.OrdinalIgnoreCase);
+                _snapshot.Theme ??= AppThemeSettings.Default;
             }
         }
         catch
@@ -320,6 +322,180 @@ public sealed class IptvLibraryService
     {
         _snapshot.Sources.RemoveAll(s => s.Id == sourceId);
         _snapshot.Channels.RemoveAll(c => c.SourceId == sourceId);
+        await SaveAsync(ct);
+    }
+
+    public async Task<PlaylistSource> RefreshSourceAsync(string sourceId, CancellationToken ct = default)
+    {
+        var source = _snapshot.Sources.FirstOrDefault(s => s.Id == sourceId)
+            ?? throw new InvalidOperationException("Fonte não encontrada.");
+
+        if (source.Type == PlaylistSourceType.Demo)
+        {
+            return await LoadDemoAsync(ct);
+        }
+
+        var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+        if (source.Type == PlaylistSourceType.M3uUrl && !string.IsNullOrWhiteSpace(source.Url))
+        {
+            var content = await _http.GetStringAsync(source.Url, ct);
+            var parsed = M3uParser.Parse(content, source.Id);
+            if (parsed.Channels.Count == 0)
+            {
+                throw new InvalidOperationException("Nenhum canal encontrado ao atualizar a lista M3U.");
+            }
+
+            _snapshot.Channels.RemoveAll(c => c.SourceId == source.Id);
+            _snapshot.Channels.InsertRange(0, parsed.Channels);
+
+            var updated = source with
+            {
+                EpgUrl = parsed.EpgUrl ?? source.EpgUrl,
+                LastUpdatedAtUnixMs = nowMs,
+                ChannelCount = parsed.Channels.Count,
+            };
+            var idx = _snapshot.Sources.FindIndex(s => s.Id == source.Id);
+            if (idx >= 0) _snapshot.Sources[idx] = updated;
+            await SaveAsync(ct);
+            return updated;
+        }
+
+        if (source.Type == PlaylistSourceType.Xtream && source.Xtream is not null)
+        {
+            var res = await _xtream.FetchAllContentAsync(source.Xtream, source.Id, ct);
+            _snapshot.Channels.RemoveAll(c => c.SourceId == source.Id);
+            _snapshot.Channels.InsertRange(0, res.Channels);
+
+            var updated = source with
+            {
+                EpgUrl = res.EpgUrl,
+                LastUpdatedAtUnixMs = nowMs,
+                ChannelCount = res.Channels.Count,
+            };
+            var idx = _snapshot.Sources.FindIndex(s => s.Id == source.Id);
+            if (idx >= 0) _snapshot.Sources[idx] = updated;
+            await SaveAsync(ct);
+            return updated;
+        }
+
+        return source;
+    }
+
+    public async Task<PlaylistSource> UpdateSourceAsync(
+        string sourceId,
+        string newName,
+        string? newUrl = null,
+        XtreamCredentials? newXtream = null,
+        bool reloadChannels = true,
+        CancellationToken ct = default)
+    {
+        var idx = _snapshot.Sources.FindIndex(s => s.Id == sourceId);
+        if (idx < 0)
+        {
+            throw new InvalidOperationException("Conta/lista não encontrada.");
+        }
+
+        var existing = _snapshot.Sources[idx];
+        var cleanName = string.IsNullOrWhiteSpace(newName) ? existing.Name : newName.Trim();
+        var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+        if (existing.Type == PlaylistSourceType.Xtream && newXtream is not null)
+        {
+            var credsChanged = existing.Xtream != newXtream;
+            if (reloadChannels || credsChanged)
+            {
+                var res = await _xtream.FetchAllContentAsync(newXtream, existing.Id, ct);
+                _snapshot.Channels.RemoveAll(c => c.SourceId == existing.Id);
+                _snapshot.Channels.InsertRange(0, res.Channels);
+
+                var updated = existing with
+                {
+                    Name = cleanName,
+                    Xtream = newXtream,
+                    EpgUrl = res.EpgUrl,
+                    LastUpdatedAtUnixMs = nowMs,
+                    ChannelCount = res.Channels.Count,
+                };
+                _snapshot.Sources[idx] = updated;
+                await SaveAsync(ct);
+                return updated;
+            }
+
+            var metaOnly = existing with { Name = cleanName, Xtream = newXtream };
+            _snapshot.Sources[idx] = metaOnly;
+            await SaveAsync(ct);
+            return metaOnly;
+        }
+
+        if (existing.Type == PlaylistSourceType.M3uUrl && !string.IsNullOrWhiteSpace(newUrl))
+        {
+            var trimmedUrl = newUrl.Trim();
+            var urlChanged = !string.Equals(existing.Url, trimmedUrl, StringComparison.Ordinal);
+            if (reloadChannels || urlChanged)
+            {
+                var content = await _http.GetStringAsync(trimmedUrl, ct);
+                var parsed = M3uParser.Parse(content, existing.Id);
+                if (parsed.Channels.Count == 0)
+                {
+                    throw new InvalidOperationException("Nenhum canal válido encontrado na URL M3U informada.");
+                }
+
+                _snapshot.Channels.RemoveAll(c => c.SourceId == existing.Id);
+                _snapshot.Channels.InsertRange(0, parsed.Channels);
+
+                var inferredXtream = XtreamClient.TryInferFromPlaylistUrl(trimmedUrl);
+                var epgUrl = !string.IsNullOrWhiteSpace(parsed.EpgUrl)
+                    ? parsed.EpgUrl
+                    : (inferredXtream is not null ? XtreamClient.BuildXmltvUrl(inferredXtream) : existing.EpgUrl);
+
+                var updated = existing with
+                {
+                    Name = cleanName,
+                    Url = trimmedUrl,
+                    EpgUrl = epgUrl,
+                    Xtream = inferredXtream ?? existing.Xtream,
+                    LastUpdatedAtUnixMs = nowMs,
+                    ChannelCount = parsed.Channels.Count,
+                };
+                _snapshot.Sources[idx] = updated;
+                await SaveAsync(ct);
+                return updated;
+            }
+
+            var metaOnly = existing with { Name = cleanName, Url = trimmedUrl };
+            _snapshot.Sources[idx] = metaOnly;
+            await SaveAsync(ct);
+            return metaOnly;
+        }
+
+        var renamed = existing with { Name = cleanName };
+        _snapshot.Sources[idx] = renamed;
+        await SaveAsync(ct);
+        return renamed;
+    }
+
+    public async Task UpdateThemeAsync(AppThemeSettings theme, CancellationToken ct = default)
+    {
+        _snapshot.Theme = theme;
+        await SaveAsync(ct);
+    }
+
+    public Task ResetThemeAsync(CancellationToken ct = default) =>
+        UpdateThemeAsync(AppThemeSettings.Default, ct);
+
+    public string ExportBackupJson()
+    {
+        return JsonSerializer.Serialize(_snapshot, new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    public async Task ImportBackupAsync(string json, CancellationToken ct = default)
+    {
+        var loaded = JsonSerializer.Deserialize<IptvStoreSnapshot>(json, JsonOptions)
+            ?? throw new InvalidOperationException("Arquivo de backup inválido.");
+        loaded.Epg ??= new Dictionary<string, List<EpgProgram>>(StringComparer.OrdinalIgnoreCase);
+        loaded.Theme ??= AppThemeSettings.Default;
+        _snapshot = loaded;
         await SaveAsync(ct);
     }
 

@@ -3,17 +3,19 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:TVLocal.Wpf"
         Title="Detalhes do Filme"
-        Width="780" Height="510"
-        MinWidth="640" MinHeight="430"
+        Icon="pack://application:,,,/Assets/tv-local.ico"
+        Width="820" Height="540"
+        MinWidth="660" MinHeight="450"
         WindowStartupLocation="CenterOwner"
-        Background="#080C14"
+        Background="{DynamicResource BgBrush}"
         Foreground="#F1F5F9"
         KeyDown="OnWindowKeyDown">
     <Window.Resources>
         <local:PosterImageConverter x:Key="PosterConverter"/>
     </Window.Resources>
 
-    <Border Margin="18" Background="#0F1624" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="16" Padding="24">
+    <Border Margin="20" Background="{DynamicResource ElevatedBrush}"
+            BorderBrush="{DynamicResource BorderBrushDark}" BorderThickness="1" CornerRadius="16" Padding="26">
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="220"/>
