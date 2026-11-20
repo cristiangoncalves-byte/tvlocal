@@ -40,6 +40,25 @@ https://stream.example.com/live/esporte.m3u8`;
     assert.equal(result.channels[2].group, 'Esportes');
     assert.equal(result.channels[2].name, 'Canal Sem Grupo');
   });
+
+  it('rejects unsafe stream schemes and sanitizes EXTVLCOPT headers', () => {
+    const sample = `#EXTM3U url-tvg="javascript:alert(1)"
+#EXTINF:-1 tvg-logo="file:///etc/passwd",Unsafe File
+file:///C:/Windows/win.ini
+
+#EXTINF:-1,Unsafe JS
+javascript:alert(1)
+
+#EXTINF:-1,Safe Stream
+#EXTVLCOPT:http-user-agent=TVLocal"Agent\t\0X
+https://stream.example.com/live/safe.m3u8`;
+
+    const result = parseM3u(sample, 'src_sec');
+    assert.equal(result.epgUrl, undefined);
+    assert.equal(result.channels.length, 1);
+    assert.equal(result.channels[0].name, 'Safe Stream');
+    assert.equal(result.channels[0].httpUserAgent, 'TVLocalAgentX');
+  });
 });
 
 describe('@tv-local/core XMLTV parser', () => {

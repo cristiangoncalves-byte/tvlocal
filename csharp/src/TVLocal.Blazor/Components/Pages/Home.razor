@@ -589,8 +589,14 @@
         new("Grafite", "#0C0D10", "#14161B", "#1D2028", "#06B6D4"),
     ];
 
+    private static string SafeHex(string? value, string fallback) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        System.Text.RegularExpressions.Regex.IsMatch(value.Trim(), "^#[0-9A-Fa-f]{6}$")
+            ? value.Trim()
+            : fallback;
+
     private string ThemeInlineStyle =>
-        $"--bg: {Library.Theme.BackgroundHex}; --bg-elevated: {Library.Theme.SurfaceHex}; --bg-card: {Library.Theme.CardHex}; --accent: {Library.Theme.AccentHex}; --accent-hover: {Library.Theme.AccentHex};";
+        $"--bg: {SafeHex(Library.Theme.BackgroundHex, "#080C14")}; --bg-elevated: {SafeHex(Library.Theme.SurfaceHex, "#0F1624")}; --bg-card: {SafeHex(Library.Theme.CardHex, "#151E30")}; --accent: {SafeHex(Library.Theme.AccentHex, "#3B82F6")}; --accent-hover: {SafeHex(Library.Theme.AccentHex, "#3B82F6")};";
 
     private void OpenSettingsModal()
     {
@@ -613,7 +619,12 @@
     }
 
     private Task ApplyCustomBlazorThemeAsync() =>
-        ApplyBlazorThemeAsync(new AppThemeSettings("Personalizado", _themeBg, _themeSurface, _themeCard, _themeAccent));
+        ApplyBlazorThemeAsync(new AppThemeSettings(
+            "Personalizado",
+            SafeHex(_themeBg, AppThemeSettings.Default.BackgroundHex),
+            SafeHex(_themeSurface, AppThemeSettings.Default.SurfaceHex),
+            SafeHex(_themeCard, AppThemeSettings.Default.CardHex),
+            SafeHex(_themeAccent, AppThemeSettings.Default.AccentHex)));
 
     private Task ResetBlazorThemeAsync() => ApplyBlazorThemeAsync(AppThemeSettings.Default);
 

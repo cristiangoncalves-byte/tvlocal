@@ -12,8 +12,26 @@ public static partial class M3uParser
     [GeneratedRegex(@"([a-zA-Z0-9_-]+)=(?:""([^""]*)""|'([^']*)'|([^\s,]*))", RegexOptions.Compiled)]
     private static partial Regex AttributeRegex();
 
-    [GeneratedRegex(@"^[a-zA-Z][a-zA-Z0-9+.-]*://", RegexOptions.Compiled)]
-    private static partial Regex UrlSchemeRegex();
+    [GeneratedRegex(@"^(https?|rtmps?|rtsp|mmsh?)://", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    private static partial Regex AllowedStreamSchemeRegex();
+
+    [GeneratedRegex(@"^https?://", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    private static partial Regex AllowedHttpSchemeRegex();
+
+    private static string? SanitizeHeaderValue(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        var cleaned = new string(raw.Where(c => !char.IsControl(c) && c != '"').ToArray()).Trim();
+        if (cleaned.Length == 0) return null;
+        return cleaned.Length > 256 ? cleaned[..256] : cleaned;
+    }
+
+    private static string? SanitizeHttpUrl(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        var trimmed = raw.Trim();
+        return AllowedHttpSchemeRegex().IsMatch(trimmed) ? trimmed : null;
+    }
 
     public static ParsedM3uResult Parse(string content, string sourceId)
     {
@@ -51,9 +69,10 @@ public static partial class M3uParser
             if (line.StartsWith("#EXTM3U", StringComparison.OrdinalIgnoreCase))
             {
                 var headerAttrs = ParseAttributes(line);
-                epgUrl = headerAttrs.GetValueOrDefault("url-tvg")
+                epgUrl = SanitizeHttpUrl(
+                    headerAttrs.GetValueOrDefault("url-tvg")
                     ?? headerAttrs.GetValueOrDefault("x-tvg-url")
-                    ?? headerAttrs.GetValueOrDefault("tvg-url");
+                    ?? headerAttrs.GetValueOrDefault("tvg-url"));
                 continue;
             }
 
@@ -84,11 +103,11 @@ public static partial class M3uParser
                 var opt = line["#EXTVLCOPT:".Length..].Trim();
                 if (opt.StartsWith("http-user-agent=", StringComparison.OrdinalIgnoreCase))
                 {
-                    pendingUserAgent = opt["http-user-agent=".Length..].Trim();
+                    pendingUserAgent = SanitizeHeaderValue(opt["http-user-agent=".Length..]);
                 }
                 else if (opt.StartsWith("http-referrer=", StringComparison.OrdinalIgnoreCase))
                 {
-                    pendingReferrer = opt["http-referrer=".Length..].Trim();
+                    pendingReferrer = SanitizeHeaderValue(opt["http-referrer=".Length..]);
                 }
                 continue;
             }
@@ -98,7 +117,7 @@ public static partial class M3uParser
                 continue;
             }
 
-            if (UrlSchemeRegex().IsMatch(line) || hasExtInf)
+            if (AllowedStreamSchemeRegex().IsMatch(line))
             {
                 var group = !string.IsNullOrWhiteSpace(pendingGroup)
                     ? pendingGroup
@@ -114,12 +133,16 @@ public static partial class M3uParser
                     Group: group,
                     Kind: InferKind(line, group, pendingAttrs),
                     SourceId: sourceId,
-                    Logo: pendingAttrs.GetValueOrDefault("tvg-logo") ?? pendingAttrs.GetValueOrDefault("logo"),
+                    Logo: SanitizeHttpUrl(pendingAttrs.GetValueOrDefault("tvg-logo") ?? pendingAttrs.GetValueOrDefault("logo")),
                     TvgId: pendingAttrs.GetValueOrDefault("tvg-id"),
                     TvgName: pendingAttrs.GetValueOrDefault("tvg-name"),
                     HttpUserAgent: pendingUserAgent,
                     HttpReferrer: pendingReferrer));
 
+                ResetPending();
+            }
+            else if (hasExtInf)
+            {
                 ResetPending();
             }
         }

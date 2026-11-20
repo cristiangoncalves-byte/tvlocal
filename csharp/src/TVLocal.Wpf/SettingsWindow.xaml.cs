@@ -331,7 +331,7 @@ public partial class SettingsWindow : Window
             if (!string.IsNullOrWhiteSpace(result.ZipDownloadUrl))
             {
                 SetBusy(true, "Baixando e preparando atualização...");
-                await AppUpdaterService.DownloadAndApplyZipUpdateAsync(result.ZipDownloadUrl);
+                await AppUpdaterService.DownloadAndApplyZipUpdateAsync(result.ZipDownloadUrl, result.Sha256Digest);
                 Application.Current.Shutdown();
                 return;
             }

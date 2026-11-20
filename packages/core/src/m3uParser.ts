@@ -6,6 +6,20 @@ export interface ParsedM3uResult {
 }
 
 const VOD_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.mov', '.webm'];
+const ALLOWED_STREAM_SCHEME_REGEX = /^(https?|rtmps?|rtsp|mmsh?):\/\//i;
+const ALLOWED_HTTP_SCHEME_REGEX = /^https?:\/\//i;
+
+function sanitizeHeaderValue(raw: string): string | undefined {
+  const cleaned = raw.replace(/[\r\n\0\t"]/g, '').trim();
+  if (!cleaned) return undefined;
+  return cleaned.length > 256 ? cleaned.slice(0, 256) : cleaned;
+}
+
+function sanitizeHttpUrl(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  return ALLOWED_HTTP_SCHEME_REGEX.test(trimmed) ? trimmed : undefined;
+}
 
 function hashString(input: string): string {
   let hash = 2166136261;
@@ -107,7 +121,9 @@ export function parseM3u(content: string, sourceId: string): ParsedM3uResult {
 
     if (line.startsWith('#EXTM3U')) {
       const headerAttrs = parseAttributes(line);
-      epgUrl = headerAttrs['url-tvg'] ?? headerAttrs['x-tvg-url'] ?? headerAttrs['tvg-url'];
+      epgUrl = sanitizeHttpUrl(
+        headerAttrs['url-tvg'] ?? headerAttrs['x-tvg-url'] ?? headerAttrs['tvg-url'],
+      );
       continue;
     }
 
@@ -130,9 +146,9 @@ export function parseM3u(content: string, sourceId: string): ParsedM3uResult {
     if (line.startsWith('#EXTVLCOPT:')) {
       const opt = line.slice('#EXTVLCOPT:'.length).trim();
       if (opt.toLowerCase().startsWith('http-user-agent=')) {
-        pendingUserAgent = opt.slice('http-user-agent='.length).trim();
+        pendingUserAgent = sanitizeHeaderValue(opt.slice('http-user-agent='.length));
       } else if (opt.toLowerCase().startsWith('http-referrer=')) {
-        pendingReferrer = opt.slice('http-referrer='.length).trim();
+        pendingReferrer = sanitizeHeaderValue(opt.slice('http-referrer='.length));
       }
       continue;
     }
@@ -142,7 +158,7 @@ export function parseM3u(content: string, sourceId: string): ParsedM3uResult {
     }
 
     // Stream URL line
-    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(line) || hasExtInf) {
+    if (ALLOWED_STREAM_SCHEME_REGEX.test(line)) {
       const group = pendingGroup || pendingAttrs['group-title'] || 'Sem Categoria';
       const name = pendingName || `Canal ${channels.length + 1}`;
       const catchupDaysRaw = pendingAttrs['catchup-days']
@@ -153,7 +169,7 @@ export function parseM3u(content: string, sourceId: string): ParsedM3uResult {
         id: `${sourceId}_${hashString(`${line}|${name}|${channels.length}`)}`,
         name,
         url: line,
-        logo: pendingAttrs['tvg-logo'] || pendingAttrs['logo'],
+        logo: sanitizeHttpUrl(pendingAttrs['tvg-logo'] || pendingAttrs['logo']),
         group,
         tvgId: pendingAttrs['tvg-id'],
         tvgName: pendingAttrs['tvg-name'],
@@ -165,6 +181,8 @@ export function parseM3u(content: string, sourceId: string): ParsedM3uResult {
         httpReferrer: pendingReferrer,
       });
 
+      resetPending();
+    } else if (hasExtInf) {
       resetPending();
     }
   }

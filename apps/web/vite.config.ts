@@ -21,6 +21,28 @@ function localCorsProxyPlugin(): Plugin {
         }
 
         try {
+          const parsedTarget = new URL(target);
+          const host = parsedTarget.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+          if (
+            host === 'localhost' ||
+            host.endsWith('.localhost') ||
+            host === '::1' ||
+            host === '::' ||
+            host === '0.0.0.0' ||
+            host.startsWith('127.') ||
+            host.startsWith('169.254.')
+          ) {
+            res.statusCode = 403;
+            res.end('Host bloqueado por política de segurança');
+            return;
+          }
+        } catch {
+          res.statusCode = 400;
+          res.end('URL inválida');
+          return;
+        }
+
+        try {
           const upstream = await fetch(target, {
             headers: {
               'User-Agent': req.headers['x-proxy-ua']?.toString() || 'TVLocal/1.0',

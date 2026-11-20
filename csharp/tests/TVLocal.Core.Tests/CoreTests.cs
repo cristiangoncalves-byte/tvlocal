@@ -41,6 +41,25 @@ public class CoreTests
     }
 
     [Fact]
+    public void M3uParser_RejectsUnsafeSchemesAndSanitizesHeaders()
+    {
+        const string sample = "#EXTM3U url-tvg=\"javascript:alert(1)\"\n"
+            + "#EXTINF:-1 tvg-logo=\"file:///etc/passwd\",Unsafe File\n"
+            + "file:///C:/Windows/win.ini\n"
+            + "#EXTINF:-1,Unsafe JS\n"
+            + "javascript:alert(1)\n"
+            + "#EXTINF:-1,Safe Stream\n"
+            + "#EXTVLCOPT:http-user-agent=TVLocal\"Agent\t\0X\n"
+            + "https://stream.example.com/live/safe.m3u8\n";
+
+        var result = M3uParser.Parse(sample, "src_sec");
+        Assert.Null(result.EpgUrl);
+        Assert.Single(result.Channels);
+        Assert.Equal("Safe Stream", result.Channels[0].Name);
+        Assert.Equal("TVLocalAgentX", result.Channels[0].HttpUserAgent);
+    }
+
+    [Fact]
     public void XmltvParser_ParsesDatesAndFindsNowAndNext()
     {
         var start = XmltvParser.ParseXmltvDate("20261116220000 -0300");
@@ -196,6 +215,44 @@ public class CoreTests
             await libReloaded.LoadAsync();
             Assert.Single(libReloaded.Sources);
             Assert.Equal("Lista Renomeada", libReloaded.Sources[0].Name);
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task IptvLibraryService_EncryptsXtreamPasswordAtRestAndDecryptsOnLoad()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"tvlocal_sec_{Guid.NewGuid():N}.json");
+        try
+        {
+            const string secretPassword = "SuperSecretPassword!123";
+            var backupSnapshot = new IptvStoreSnapshot
+            {
+                Sources =
+                [
+                    new PlaylistSource(
+                        Id: "xt_sec_1",
+                        Name: "Xtream Seguro",
+                        Type: PlaylistSourceType.Xtream,
+                        Xtream: new XtreamCredentials("https://tv.example.com", "usuario", secretPassword)),
+                ],
+            };
+            var json = JsonSerializer.Serialize(backupSnapshot);
+
+            var lib1 = new IptvLibraryService(tempFile);
+            await lib1.ImportBackupAsync(json);
+
+            var rawSaved = await File.ReadAllTextAsync(tempFile);
+            Assert.DoesNotContain(secretPassword, rawSaved, StringComparison.Ordinal);
+            Assert.Contains("enc:v1:", rawSaved, StringComparison.Ordinal);
+
+            var lib2 = new IptvLibraryService(tempFile);
+            await lib2.LoadAsync();
+            Assert.Single(lib2.Sources);
+            Assert.Equal(secretPassword, lib2.Sources[0].Xtream?.Password);
         }
         finally
         {

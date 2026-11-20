@@ -3,6 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace TVLocal.Wpf;
@@ -13,6 +14,7 @@ public sealed record UpdateCheckResult(
     Version? LatestVersion,
     string? LatestTag,
     string? ZipDownloadUrl,
+    string? Sha256Digest,
     string? ReleasePageUrl,
     string Message);
 
@@ -60,6 +62,7 @@ public static class AppUpdaterService
                 null,
                 null,
                 null,
+                null,
                 $"Nenhuma release publicada no GitHub ainda (versão atual: v{current.ToString(3)}).");
         }
 
@@ -79,6 +82,7 @@ public static class AppUpdaterService
                 null,
                 tag,
                 null,
+                null,
                 htmlUrl,
                 $"Você está na versão v{current.ToString(3)}.");
         }
@@ -93,23 +97,27 @@ public static class AppUpdaterService
                 latestNorm,
                 tag,
                 null,
+                null,
                 htmlUrl,
                 $"Você já está na versão mais recente (v{currentNorm.ToString(3)}).");
         }
 
         string? zipUrl = null;
+        string? sha256Digest = null;
         if (root.TryGetProperty("assets", out var assetsEl) && assetsEl.ValueKind == JsonValueKind.Array)
         {
             foreach (var asset in assetsEl.EnumerateArray())
             {
                 var name = asset.TryGetProperty("name", out var n) ? n.GetString() : null;
                 var url = asset.TryGetProperty("browser_download_url", out var u) ? u.GetString() : null;
+                var digest = asset.TryGetProperty("digest", out var d) ? d.GetString() : null;
                 if (!string.IsNullOrWhiteSpace(name) &&
                     name.Contains("Wpf", StringComparison.OrdinalIgnoreCase) &&
                     name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
                     !string.IsNullOrWhiteSpace(url))
                 {
                     zipUrl = url;
+                    sha256Digest = digest;
                     break;
                 }
             }
@@ -121,12 +129,22 @@ public static class AppUpdaterService
             latestNorm,
             tag,
             zipUrl,
+            sha256Digest,
             htmlUrl,
             $"Nova versão {tag} disponível (atual: v{currentNorm.ToString(3)}).");
     }
 
-    public static async Task DownloadAndApplyZipUpdateAsync(string zipDownloadUrl)
+    public static async Task DownloadAndApplyZipUpdateAsync(string zipDownloadUrl, string? expectedDigest = null)
     {
+        if (!Uri.TryCreate(zipDownloadUrl, UriKind.Absolute, out var uri) ||
+            uri.Scheme != Uri.UriSchemeHttps ||
+            (!uri.DnsSafeHost.Equals("github.com", StringComparison.OrdinalIgnoreCase) &&
+             !uri.DnsSafeHost.EndsWith(".github.com", StringComparison.OrdinalIgnoreCase) &&
+             !uri.DnsSafeHost.EndsWith(".githubusercontent.com", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException("URL de atualização não confiável.");
+        }
+
         var tempRoot = Path.Combine(Path.GetTempPath(), "TVLocalUpdate");
         if (Directory.Exists(tempRoot))
         {
@@ -137,7 +155,18 @@ public static class AppUpdaterService
         var zipPath = Path.Combine(tempRoot, "update.zip");
         var extractDir = Path.Combine(tempRoot, "extracted");
 
-        var bytes = await Http.GetByteArrayAsync(zipDownloadUrl);
+        var bytes = await Http.GetByteArrayAsync(uri);
+        if (!string.IsNullOrWhiteSpace(expectedDigest) &&
+            expectedDigest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
+        {
+            var expectedHex = expectedDigest["sha256:".Length..].Trim();
+            var actualHex = Convert.ToHexStringLower(SHA256.HashData(bytes));
+            if (!actualHex.Equals(expectedHex, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Falha na verificação de integridade SHA-256 do pacote de atualização.");
+            }
+        }
+
         await File.WriteAllBytesAsync(zipPath, bytes);
         ZipFile.ExtractToDirectory(zipPath, extractDir, overwriteFiles: true);
 
@@ -153,15 +182,19 @@ public static class AppUpdaterService
         var exePath = Process.GetCurrentProcess().MainModule?.FileName ?? Path.Combine(appDir, "TVLocal.Wpf.exe");
         var currentPid = Environment.ProcessId;
 
+        static string EscapePsSingleQuoted(string s) => s.Replace("'", "''");
+
         var scriptPath = Path.Combine(tempRoot, "apply-update.ps1");
         var script = $$"""
             $pidToWait = {{currentPid}}
             while (Get-Process -Id $pidToWait -ErrorAction SilentlyContinue) {
               Start-Sleep -Milliseconds 300
             }
-            Copy-Item -Path "{{sourceDir}}\*" -Destination "{{appDir}}" -Recurse -Force
-            Start-Process -FilePath "{{exePath}}"
-            Remove-Item -Path "{{tempRoot}}" -Recurse -Force -ErrorAction SilentlyContinue
+            $src = '{{EscapePsSingleQuoted(sourceDir)}}'
+            $dst = '{{EscapePsSingleQuoted(appDir)}}'
+            Get-ChildItem -LiteralPath $src -Force | Copy-Item -Destination $dst -Recurse -Force
+            Start-Process -FilePath '{{EscapePsSingleQuoted(exePath)}}'
+            Remove-Item -LiteralPath '{{EscapePsSingleQuoted(tempRoot)}}' -Recurse -Force -ErrorAction SilentlyContinue
             """;
         await File.WriteAllTextAsync(scriptPath, script);
 

@@ -1,13 +1,65 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
+import * as crypto from 'node:crypto';
+import * as dns from 'node:dns/promises';
 import * as fs from 'node:fs/promises';
 import * as http from 'node:http';
+import * as net from 'node:net';
 import * as path from 'node:path';
 import { Readable } from 'node:stream';
 
 let mainWindow: BrowserWindow | null = null;
 let proxyServer: http.Server | null = null;
 let proxyBaseUrl = '';
+const proxyToken = crypto.randomBytes(24).toString('hex');
+
+function isBlockedHostAddress(rawIp: string): boolean {
+  const ip = rawIp.toLowerCase().replace(/^\[|\]$/g, '');
+  if (
+    ip === '::1' ||
+    ip === '::' ||
+    ip === '0.0.0.0' ||
+    ip.startsWith('127.') ||
+    ip.startsWith('0.') ||
+    ip.startsWith('169.254.') ||
+    ip.startsWith('fe80:') ||
+    ip.startsWith('::ffff:127.') ||
+    ip.startsWith('::ffff:0.') ||
+    ip.startsWith('::ffff:169.254.')
+  ) {
+    return true;
+  }
+  return false;
+}
+
+async function isSafeProxyTarget(targetUrl: string): Promise<boolean> {
+  let parsed: URL;
+  try {
+    parsed = new URL(targetUrl);
+  } catch {
+    return false;
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return false;
+  }
+
+  const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (!host || host === 'localhost' || host.endsWith('.localhost')) {
+    return false;
+  }
+
+  if (net.isIP(host) !== 0) {
+    return !isBlockedHostAddress(host);
+  }
+
+  try {
+    const records = await dns.lookup(host, { all: true });
+    return records.length > 0 && records.every((r) => !isBlockedHostAddress(r.address));
+  } catch {
+    return false;
+  }
+}
 
 function startLocalProxy(): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -29,10 +81,22 @@ function startLocalProxy(): Promise<string> {
         return;
       }
 
+      if (reqUrl.searchParams.get('token') !== proxyToken) {
+        res.writeHead(403);
+        res.end('Forbidden');
+        return;
+      }
+
       const target = reqUrl.searchParams.get('url');
       if (!target || !/^https?:\/\//i.test(target)) {
         res.writeHead(400);
         res.end('Invalid url parameter');
+        return;
+      }
+
+      if (!(await isSafeProxyTarget(target))) {
+        res.writeHead(403);
+        res.end('Blocked host');
         return;
       }
 
@@ -95,7 +159,10 @@ async function createMainWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      additionalArguments: [`--tv-local-proxy=${proxyBaseUrl}`],
+      additionalArguments: [
+        `--tv-local-proxy=${proxyBaseUrl}`,
+        `--tv-local-proxy-token=${proxyToken}`,
+      ],
     },
   });
 

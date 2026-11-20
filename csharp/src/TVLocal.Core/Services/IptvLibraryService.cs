@@ -1,4 +1,6 @@
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using TVLocal.Core.Clients;
 using TVLocal.Core.Models;
@@ -8,6 +10,7 @@ namespace TVLocal.Core.Services;
 
 public sealed class IptvLibraryService
 {
+    private const string EncryptedPrefix = "enc:v1:";
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = false,
@@ -15,6 +18,7 @@ public sealed class IptvLibraryService
     };
 
     private readonly string _storagePath;
+    private readonly string _keyPath;
     private readonly HttpClient _http;
     private readonly XtreamClient _xtream;
     private readonly SemaphoreSlim _ioLock = new(1, 1);
@@ -22,10 +26,11 @@ public sealed class IptvLibraryService
 
     public IptvLibraryService(string? storagePath = null, HttpClient? httpClient = null)
     {
-        _storagePath = storagePath ?? Path.Combine(
+        var appDataDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "TVLocal",
-            "library.json");
+            "TVLocal");
+        _storagePath = storagePath ?? Path.Combine(appDataDir, "library.json");
+        _keyPath = Path.Combine(appDataDir, ".tvlocal.key");
         _http = httpClient ?? new HttpClient(new SocketsHttpHandler
         {
             AutomaticDecompression = DecompressionMethods.All,
@@ -57,6 +62,7 @@ public sealed class IptvLibraryService
                 _snapshot = loaded;
                 _snapshot.Epg ??= new Dictionary<string, List<EpgProgram>>(StringComparer.OrdinalIgnoreCase);
                 _snapshot.Theme ??= AppThemeSettings.Default;
+                DecryptSourcesInPlace(_snapshot.Sources);
             }
         }
         catch
@@ -82,10 +88,24 @@ public sealed class IptvLibraryService
                     Directory.CreateDirectory(dir);
                 }
 
+                var snapshotToPersist = new IptvStoreSnapshot
+                {
+                    Sources = _snapshot.Sources
+                        .Select(s => s.Xtream is null
+                            ? s
+                            : s with { Xtream = s.Xtream with { Password = EncryptSecret(s.Xtream.Password) } })
+                        .ToList(),
+                    Channels = _snapshot.Channels,
+                    Favorites = _snapshot.Favorites,
+                    Recents = _snapshot.Recents,
+                    Epg = _snapshot.Epg,
+                    Theme = _snapshot.Theme,
+                };
+
                 var tempPath = _storagePath + ".tmp";
                 await using (var stream = File.Create(tempPath))
                 {
-                    await JsonSerializer.SerializeAsync(stream, _snapshot, JsonOptions, ct);
+                    await JsonSerializer.SerializeAsync(stream, snapshotToPersist, JsonOptions, ct);
                 }
                 File.Move(tempPath, _storagePath, overwrite: true);
             }, ct);
@@ -495,6 +515,7 @@ public sealed class IptvLibraryService
             ?? throw new InvalidOperationException("Arquivo de backup inválido.");
         loaded.Epg ??= new Dictionary<string, List<EpgProgram>>(StringComparer.OrdinalIgnoreCase);
         loaded.Theme ??= AppThemeSettings.Default;
+        DecryptSourcesInPlace(loaded.Sources);
         _snapshot = loaded;
         await SaveAsync(ct);
     }
@@ -551,6 +572,132 @@ public sealed class IptvLibraryService
         foreach (var (key, programs) in incoming)
         {
             _snapshot.Epg[key] = programs;
+        }
+    }
+
+    private byte[] GetOrCreateEncryptionKey()
+    {
+        if (File.Exists(_keyPath))
+        {
+            var existing = File.ReadAllBytes(_keyPath);
+            if (existing.Length == 32)
+            {
+                return existing;
+            }
+        }
+
+        var dir = Path.GetDirectoryName(_keyPath);
+        if (!string.IsNullOrEmpty(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
+        var key = RandomNumberGenerator.GetBytes(32);
+        File.WriteAllBytes(_keyPath, key);
+        return key;
+    }
+
+    private string EncryptSecret(string? plain)
+    {
+        if (string.IsNullOrEmpty(plain) || plain.StartsWith(EncryptedPrefix, StringComparison.Ordinal))
+        {
+            return plain ?? string.Empty;
+        }
+
+        var key = GetOrCreateEncryptionKey();
+        var plainBytes = Encoding.UTF8.GetBytes(plain);
+
+        if (AesGcm.IsSupported)
+        {
+            var nonce = RandomNumberGenerator.GetBytes(12);
+            var tag = new byte[16];
+            var cipher = new byte[plainBytes.Length];
+            using var aesGcm = new AesGcm(key, tag.Length);
+            aesGcm.Encrypt(nonce, plainBytes, cipher, tag);
+
+            var payload = new byte[nonce.Length + tag.Length + cipher.Length];
+            Buffer.BlockCopy(nonce, 0, payload, 0, nonce.Length);
+            Buffer.BlockCopy(tag, 0, payload, nonce.Length, tag.Length);
+            Buffer.BlockCopy(cipher, 0, payload, nonce.Length + tag.Length, cipher.Length);
+            return EncryptedPrefix + Convert.ToBase64String(payload);
+        }
+
+        using var aes = Aes.Create();
+        aes.Key = key;
+        aes.GenerateIV();
+        using var encryptor = aes.CreateEncryptor();
+        var encrypted = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
+        var cbcPayload = new byte[aes.IV.Length + encrypted.Length];
+        Buffer.BlockCopy(aes.IV, 0, cbcPayload, 0, aes.IV.Length);
+        Buffer.BlockCopy(encrypted, 0, cbcPayload, aes.IV.Length, encrypted.Length);
+        return EncryptedPrefix + Convert.ToBase64String(cbcPayload);
+    }
+
+    private string DecryptSecret(string? stored)
+    {
+        if (string.IsNullOrEmpty(stored))
+        {
+            return string.Empty;
+        }
+        if (!stored.StartsWith(EncryptedPrefix, StringComparison.Ordinal))
+        {
+            return stored;
+        }
+
+        try
+        {
+            if (!File.Exists(_keyPath))
+            {
+                return string.Empty;
+            }
+            var key = File.ReadAllBytes(_keyPath);
+            if (key.Length != 32)
+            {
+                return string.Empty;
+            }
+
+            var payload = Convert.FromBase64String(stored[EncryptedPrefix.Length..]);
+            if (AesGcm.IsSupported && payload.Length >= 28)
+            {
+                var nonce = payload.AsSpan(0, 12);
+                var tag = payload.AsSpan(12, 16);
+                var cipher = payload.AsSpan(28);
+                var plain = new byte[cipher.Length];
+                using var aesGcm = new AesGcm(key, 16);
+                aesGcm.Decrypt(nonce, cipher, tag, plain);
+                return Encoding.UTF8.GetString(plain);
+            }
+
+            if (!AesGcm.IsSupported && payload.Length >= 16)
+            {
+                using var aes = Aes.Create();
+                aes.Key = key;
+                aes.IV = payload[..16];
+                using var decryptor = aes.CreateDecryptor();
+                var plain = decryptor.TransformFinalBlock(payload, 16, payload.Length - 16);
+                return Encoding.UTF8.GetString(plain);
+            }
+        }
+        catch
+        {
+            // Return empty secret if key or ciphertext is invalid
+        }
+
+        return string.Empty;
+    }
+
+    private void DecryptSourcesInPlace(List<PlaylistSource> sources)
+    {
+        for (var i = 0; i < sources.Count; i++)
+        {
+            var src = sources[i];
+            if (src.Xtream is not null)
+            {
+                sources[i] = src with
+                {
+                    Xtream = src.Xtream with { Password = DecryptSecret(src.Xtream.Password) },
+                };
+            }
         }
     }
 }

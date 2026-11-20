@@ -3,6 +3,7 @@ import type { Fetcher } from '@tv-local/core';
 export interface DesktopBridge {
   isElectron: boolean;
   proxyBaseUrl: string;
+  proxyToken?: string;
   platform: string;
   openM3uFile?: () => Promise<{ name: string; content: string } | null>;
   getAppVersion?: () => Promise<string>;
@@ -33,7 +34,10 @@ export function toProxiedUrl(targetUrl: string): string {
     return targetUrl;
   }
   if (window.tvLocalDesktop?.proxyBaseUrl) {
-    return `${window.tvLocalDesktop.proxyBaseUrl}/proxy?url=${encodeURIComponent(targetUrl)}`;
+    const tokenParam = window.tvLocalDesktop.proxyToken
+      ? `&token=${encodeURIComponent(window.tvLocalDesktop.proxyToken)}`
+      : '';
+    return `${window.tvLocalDesktop.proxyBaseUrl}/proxy?url=${encodeURIComponent(targetUrl)}${tokenParam}`;
   }
   if (import.meta.env.DEV) {
     return `/api/proxy?url=${encodeURIComponent(targetUrl)}`;
